@@ -147,6 +147,9 @@ CREATE TABLE IF NOT EXISTS tasks (
         )
     ),
 
+	CONSTRAINT chk_tasks_due_time
+    CHECK (default_due_time BETWEEN '00:00:00' AND '23:59:59'),
+
     INDEX idx_tasks_created_by (created_by_user_id),
 	INDEX idx_tasks_user_active (assigned_user_id, is_active),
 	INDEX idx_tasks_team_active (assigned_team_id, is_active)
@@ -286,6 +289,26 @@ CREATE TABLE IF NOT EXISTS task_instances (
         due_time
     ),
 
+    CONSTRAINT chk_task_instances_completion
+    CHECK (
+        (
+            status = 'open'
+            AND completed_at IS NULL
+        )
+        OR
+        (
+            status = 'completed'
+            AND completed_at IS NOT NULL
+        )
+    ),
+
+    CONSTRAINT chk_instances_due_time
+    CHECK (
+        due_time BETWEEN '00:00:00' AND '23:59:59'
+    ),
+
+    UNIQUE KEY uq_instances_id_task (id, task_id),
+
     INDEX idx_instances_task (task_id),
     INDEX idx_instances_due_date (due_date),
     INDEX idx_instances_status (status),
@@ -329,15 +352,17 @@ CREATE TABLE IF NOT EXISTS task_reminders (
         unit
     ),
 
+	UNIQUE KEY uq_reminders_id_task (id, task_id),
+
     INDEX idx_reminders_task (task_id)
 );
 
 CREATE TABLE IF NOT EXISTS reminder_deliveries (
     id INT AUTO_INCREMENT PRIMARY KEY,
-
+	task_id INT NOT NULL,
     reminder_id INT NOT NULL,
     task_instance_id INT NOT NULL,
-
+	recipient_user_id INT NOT NULL,
     scheduled_for DATETIME NOT NULL,
 
     status ENUM(
@@ -353,23 +378,34 @@ CREATE TABLE IF NOT EXISTS reminder_deliveries (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ON UPDATE CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (reminder_id)
-        REFERENCES task_reminders(id)
-        ON DELETE CASCADE,
+    CONSTRAINT fk_deliveries_reminder_task
+    FOREIGN KEY (reminder_id, task_id)
+    REFERENCES task_reminders (id, task_id)
+    ON DELETE CASCADE,
 
-    FOREIGN KEY (task_instance_id)
-        REFERENCES task_instances(id)
-        ON DELETE CASCADE,
+	CONSTRAINT fk_deliveries_instance_task
+    FOREIGN KEY (task_instance_id, task_id)
+    REFERENCES task_instances (id, task_id)
+    ON DELETE CASCADE,
 
-    UNIQUE (
-        reminder_id,
-        task_instance_id
-    ),
+	FOREIGN KEY (recipient_user_id)
+    REFERENCES users(id)
+    ON DELETE CASCADE,
 
-    INDEX idx_reminder_delivery_queue (
-        status,
-        scheduled_for
-    )
+	UNIQUE (
+    reminder_id,
+    task_instance_id,
+    recipient_user_id
+	),
+
+	INDEX idx_reminder_delivery_queue (
+    status,
+    scheduled_for
+	),
+
+	INDEX idx_reminder_recipient (
+    recipient_user_id
+	)
 );
 
 CREATE OR REPLACE VIEW task_instance_overview AS
