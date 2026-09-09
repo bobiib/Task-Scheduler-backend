@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) NOT NULL UNIQUE,
     initials VARCHAR(10) NOT NULL,
     password_hash VARCHAR(255) NULL,
+	is_active BOOLEAN NOT NULL DEFAULT TRUE,
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -147,8 +148,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     ),
 
     INDEX idx_tasks_created_by (created_by_user_id),
-    INDEX idx_tasks_assigned_user (assigned_user_id),
-    INDEX idx_tasks_assigned_team (assigned_team_id)
+	INDEX idx_tasks_user_active (assigned_user_id, is_active),
+	INDEX idx_tasks_team_active (assigned_team_id, is_active)
 );
 
 CREATE TABLE IF NOT EXISTS task_labels (
