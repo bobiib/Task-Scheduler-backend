@@ -67,7 +67,6 @@ CREATE TABLE IF NOT EXISTS tasks (
     FOREIGN KEY (assigned_user_id) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (assigned_team_id) REFERENCES teams(id) ON DELETE SET NULL,
 
-    CHECK (assigned_user_id IS NULL OR assigned_team_id IS NULL),
     CHECK (schedule_month IS NULL OR schedule_month BETWEEN 1 AND 12),
     CHECK (schedule_week_of_month IS NULL OR schedule_week_of_month BETWEEN 1 AND 5),
     CHECK (schedule_weekday IS NULL OR schedule_weekday BETWEEN 1 AND 7),
