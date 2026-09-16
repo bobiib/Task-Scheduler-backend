@@ -1,52 +1,127 @@
-# Environment Variables – Task Scheduler
+# Task-Scheduler Backend
 
-## 1. `.env.example` kopieren
+Express-Backend für den Task-Scheduler mit einer MariaDB-Datenbank in Docker.
 
-Im Backend-Projekt:
+## Voraussetzungen
+
+* Node.js
+* Docker Desktop
+* WebStorm oder ein anderer MariaDB-Client
+
+## 1. Abhängigkeiten installieren
+
+```bash
+npm install
+```
+
+## 2. Umgebungsvariablen erstellen
+
+Unter Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Unter macOS/Linux:
 
 ```bash
 cp .env.example .env
 ```
 
-Unter Windows kann die Datei auch einfach kopiert und in `.env` umbenannt werden.
-
-## 2. Eigene Werte in `.env` eintragen
-
-Beispiel:
+Danach in `.env` eigene Passwörter eintragen:
 
 ```env
-DB_HOST=localhost
+DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_NAME=task_scheduler
 DB_USER=task_scheduler_user
-DB_PASSWORD=dein_passwort
+DB_PASSWORD=CHANGE_ME
+MARIADB_ROOT_PASSWORD=CHANGE_ME
 ```
 
-Die echte `.env` darf nicht auf GitHub gepusht werden.
+Die echte `.env` enthält Passwörter und darf nicht auf GitHub gepusht werden.
 
-## 3. dotenv installieren
+## 3. MariaDB starten
+
+Docker Desktop starten und anschließend ausführen:
 
 ```bash
-npm install dotenv
+docker compose up -d
 ```
 
-## 4. Im Express-Backend laden
+Status kontrollieren:
 
-CommonJS:
-
-```js
-require("dotenv").config();
+```bash
+docker compose ps
 ```
 
-oder bei ES Modules:
+Bei `PORTS` sollte Folgendes stehen:
 
-```js
-import "dotenv/config";
+```text
+0.0.0.0:3306->3306/tcp
 ```
 
-Danach können die Variablen verwendet werden:
+## 4. Datenbankschema importieren
 
-```js
-const port = process.env.PORT;
-const dbHost = process.env.DB_HOST;
+In WebStorm eine MariaDB Data Source erstellen:
+
+```text
+Host: 127.0.0.1
+Port: 3306
+User: root
+Password: Wert von MARIADB_ROOT_PASSWORD
 ```
+
+Danach `database/schema.sql` öffnen, das Schema `task_scheduler` auswählen und die gesamte Datei ausführen.
+
+## 5. Backend starten
+
+Entwicklungsmodus:
+
+```bash
+npm run dev
+```
+
+Normaler Start:
+
+```bash
+npm start
+```
+
+Bei erfolgreicher Verbindung erscheint:
+
+```text
+MariaDB-Verbindung erfolgreich.
+Server läuft auf Port 3000
+```
+
+## 6. Verbindung testen
+
+Im Browser:
+
+```text
+http://localhost:3000/health
+```
+
+Oder unter PowerShell:
+
+```powershell
+Invoke-RestMethod http://localhost:3000/health
+```
+
+Erwartete Antwort:
+
+```json
+{
+  "status": "ok",
+  "database": "connected"
+}
+```
+
+## Docker stoppen
+
+```bash
+docker compose down
+```
+
+Dieser Befehl behält die gespeicherten Daten. `docker compose down -v` löscht dagegen das gesamte lokale Datenbank-Volume.
