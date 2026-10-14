@@ -51,7 +51,7 @@ API keeps the array so that the database's many-to-many relation is preserved.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `GET` | `/tasks` | List task instances; optional `search`, `status`, `assigneeId`, `labelId`, `from`, and `to` filters |
+| `GET` | `/tasks` | List task instances |
 | `GET` | `/tasks/:id` | Read one task and its current instances |
 | `POST` | `/tasks` | Create a task and its first instance |
 | `PATCH` | `/tasks/:id` | Update task master data |
@@ -65,14 +65,12 @@ Minimal create-task body:
   "title": "Sprintbericht fertigstellen",
   "description": "Statusbericht abgeben",
   "scheduleType": "date",
-  "scheduleDate": "2026-10-14",
+  "dueDate": "2026-10-14",
   "dueTime": "17:00",
   "createdByUserId": 1,
   "assignedUserId": 1,
   "assignedTeamId": null,
-  "labelIds": [2],
-  "recurrence": null,
-  "reminder": { "amount": 3, "unit": "days" }
+  "labelIds": [2]
 }
 ```
 
@@ -82,7 +80,11 @@ Status body:
 { "completed": true }
 ```
 
-Exactly one of `assignedUserId` and `assignedTeamId` may be set.
+At most one of `assignedUserId` and `assignedTeamId` may be set.
+
+For Sprint 1, recurrence and reminder data from the seed are returned for
+display. Creating or editing recurrence and reminder rules is outside the four
+task API issues and is therefore not part of these write endpoints.
 
 ## Labels
 

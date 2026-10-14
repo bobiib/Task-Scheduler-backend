@@ -3,6 +3,9 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const pool = require("./config/db");
+const taskRoutes = require("./routes/taskRoutes");
+const taskInstanceRoutes = require("./routes/taskInstanceRoutes");
+const { notFoundHandler, errorHandler } = require("./middleware/errorHandler");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,6 +32,11 @@ app.get("/health", async(req, res) => {
         });
     }
 });
+
+app.use("/api/tasks", taskRoutes);
+app.use("/api/task-instances", taskInstanceRoutes);
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 async function startServer() {
     try {
