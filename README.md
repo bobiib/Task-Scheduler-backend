@@ -32,7 +32,7 @@ Danach in `.env` eigene Passwörter eintragen:
 
 ```env
 DB_HOST=127.0.0.1
-DB_PORT=3306
+DB_PORT=3307
 DB_NAME=task_scheduler
 DB_USER=task_scheduler_user
 DB_PASSWORD=CHANGE_ME
@@ -58,7 +58,7 @@ docker compose ps
 Bei `PORTS` sollte Folgendes stehen:
 
 ```text
-0.0.0.0:3306->3306/tcp
+127.0.0.1:3307->3306/tcp
 ```
 
 ## 4. Datenbankschema importieren
@@ -67,14 +67,25 @@ In WebStorm eine MariaDB Data Source erstellen:
 
 ```text
 Host: 127.0.0.1
-Port: 3306
+Port: 3307
 User: root
 Password: Wert von MARIADB_ROOT_PASSWORD
 ```
 
 Danach `database/schema.sql` öffnen, das Schema `task_scheduler` auswählen und die gesamte Datei ausführen.
 
-## 5. Backend starten
+## 5. Entwicklungsdaten importieren
+
+Für eine lokale Entwicklungsumgebung kann anschließend `database/seed.sql`
+im gleichen Schema ausgeführt werden. Das Skript legt Beispielbenutzer, ein
+Projektteam, Labels, Tasks, Wiederholungen, konkrete Task-Instanzen und
+Reminder an.
+
+Das Seed-Skript ist wiederholt ausführbar. Bereits vorhandene Stammdaten werden
+aktualisiert und Beispiel-Tasks nicht dupliziert. Die verwendeten
+`example.test`-E-Mail-Adressen können keine echten E-Mails empfangen.
+
+## 6. Backend starten
 
 Entwicklungsmodus:
 
@@ -92,21 +103,21 @@ Bei erfolgreicher Verbindung erscheint:
 
 ```text
 MariaDB-Verbindung erfolgreich.
-Server läuft auf Port 3000
+Server läuft auf Port 3001
 ```
 
-## 6. Verbindung testen
+## 7. Verbindung testen
 
 Im Browser:
 
 ```text
-http://localhost:3000/health
+http://localhost:3001/health
 ```
 
 Oder unter PowerShell:
 
 ```powershell
-Invoke-RestMethod http://localhost:3000/health
+Invoke-RestMethod http://localhost:3001/health
 ```
 
 Erwartete Antwort:
