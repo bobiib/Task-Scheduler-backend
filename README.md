@@ -129,6 +129,19 @@ Erwartete Antwort:
 }
 ```
 
+## 8. Datenbankrelationen und Constraints testen
+
+Mit laufender MariaDB und ausgefüllter `.env`:
+
+```bash
+npm run test:db
+```
+
+Das Skript prüft Fremdschlüssel, Duplikate, CHECK-Regeln und das Löschverhalten.
+Es legt eigene Testdaten innerhalb einer Transaktion an und verwirft alle
+Teständerungen anschliessend mit ROLLBACK. Den Testnachweis findest du in
+`database/TEST_RESULTS.md`.
+
 ## Docker stoppen
 
 ```bash
