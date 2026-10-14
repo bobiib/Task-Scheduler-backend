@@ -6,12 +6,14 @@ const pool = require("./config/db");
 const taskRoutes = require("./routes/taskRoutes");
 const taskInstanceRoutes = require("./routes/taskInstanceRoutes");
 const { notFoundHandler, errorHandler } = require("./middleware/errorHandler");
+const labelRoutes = require("./routes/labelRoutes.js");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use("/api/labels", labelRoutes);
 
 app.get("/", (req, res) => {
     res.send("Task-Scheduler Backend läuft!");
