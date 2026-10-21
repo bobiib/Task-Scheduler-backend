@@ -15,11 +15,11 @@ function requiredText(value, field, maxLength) {
     return value.trim();
 }
 
-function memberIds(value) {
+function memberIds(value, field = "memberIds") {
     if (!Array.isArray(value)) {
-        throw new HttpError(400, "VALIDATION_ERROR", "memberIds must be an array.");
+        throw new HttpError(400, "VALIDATION_ERROR", `${field} must be an array.`);
     }
-    return [...new Set(value.map((id) => positiveId(id, "memberIds entry")))];
+    return [...new Set(value.map((id) => positiveId(id, `${field} entry`)))];
 }
 
 module.exports = { positiveId, requiredText, memberIds };

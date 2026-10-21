@@ -124,6 +124,11 @@ Each member has `id`, `name`, `initials` and `role`. `memberIds` in a create or
 update request must refer to active users. Deleting a team with active assigned
 tasks returns `409`.
 
+The optional `adminIds` array sets which members have the `admin` role; every
+admin must also be a member. When a team is created without `adminIds`, the
+creator becomes admin if they are a member. When a team is updated without
+`adminIds`, the remaining members keep their stored roles.
+
 For these reference endpoints, successful reads, creates and updates also use
 `{ "data": ... }`, like the task endpoints.
 

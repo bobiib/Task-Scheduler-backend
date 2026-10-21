@@ -43,10 +43,19 @@ async function checkActiveUsers(conn, ids) {
     }
 }
 
-async function replaceMembers(conn, teamId, ids) {
+function checkAdmins(ids, adminIds) {
+    if (adminIds.some((id) => !ids.includes(id))) {
+        throw new HttpError(400, "VALIDATION_ERROR", "Every admin must also be a member.");
+    }
+}
+
+async function replaceMembers(conn, teamId, ids, adminIds) {
     await conn.query("DELETE FROM team_users WHERE team_id = ?", [teamId]);
     for (const id of ids) {
-        await conn.query("INSERT INTO team_users (team_id, user_id) VALUES (?, ?)", [teamId, id]);
+        await conn.query(
+            "INSERT INTO team_users (team_id, user_id, role) VALUES (?, ?, ?)",
+            [teamId, id, adminIds.includes(id) ? "admin" : "member"]
+        );
     }
 }
 
@@ -63,6 +72,10 @@ async function createTeam(req, res, next) {
         const initials = requiredText(req.body?.initials, "initials", 10);
         const creatorId = positiveId(req.body?.createdByUserId, "createdByUserId");
         const ids = memberIds(req.body?.memberIds);
+        const adminIds = req.body?.adminIds === undefined
+            ? ids.filter((id) => id === creatorId)
+            : memberIds(req.body.adminIds, "adminIds");
+        checkAdmins(ids, adminIds);
 
         conn = await pool.getConnection();
         await conn.beginTransaction();
@@ -72,7 +85,7 @@ async function createTeam(req, res, next) {
             [name, initials, creatorId]
         );
         const teamId = Number(result.insertId);
-        await replaceMembers(conn, teamId, ids);
+        await replaceMembers(conn, teamId, ids, adminIds);
         await conn.commit();
         res.status(201).json({ data: (await readTeams(teamId))[0] });
     } catch (error) {
@@ -88,23 +101,34 @@ async function updateTeam(req, res, next) {
     try {
         const teamId = positiveId(req.params.id);
         const body = req.body || {};
-        if (body.name === undefined && body.initials === undefined && body.memberIds === undefined) {
-            throw new HttpError(400, "VALIDATION_ERROR", "Provide name, initials or memberIds.");
+        if (body.name === undefined && body.initials === undefined
+            && body.memberIds === undefined && body.adminIds === undefined) {
+            throw new HttpError(400, "VALIDATION_ERROR", "Provide name, initials, memberIds or adminIds.");
         }
         const name = body.name === undefined ? null : requiredText(body.name, "name", 100);
         const initials = body.initials === undefined ? null : requiredText(body.initials, "initials", 10);
-        const ids = body.memberIds === undefined ? null : memberIds(body.memberIds);
+        let ids = body.memberIds === undefined ? null : memberIds(body.memberIds);
+        let adminIds = body.adminIds === undefined ? null : memberIds(body.adminIds, "adminIds");
 
         conn = await pool.getConnection();
         await conn.beginTransaction();
         const rows = await conn.query("SELECT id FROM teams WHERE id = ? FOR UPDATE", [teamId]);
         if (!rows.length) throw new HttpError(404, "NOT_FOUND", "Team not found.");
         if (ids) await checkActiveUsers(conn, ids);
+        if (ids || adminIds) {
+            // Values missing in the request keep the stored members and admin roles.
+            const current = await conn.query("SELECT user_id AS id, role FROM team_users WHERE team_id = ?", [teamId]);
+            ids = ids || current.map((member) => member.id);
+            adminIds = adminIds || current
+                .filter((member) => member.role === "admin" && ids.includes(member.id))
+                .map((member) => member.id);
+            checkAdmins(ids, adminIds);
+        }
         await conn.query(
             "UPDATE teams SET name = COALESCE(?, name), initials = COALESCE(?, initials) WHERE id = ?",
             [name, initials, teamId]
         );
-        if (ids) await replaceMembers(conn, teamId, ids);
+        if (ids) await replaceMembers(conn, teamId, ids, adminIds);
         await conn.commit();
         res.json({ data: (await readTeams(teamId))[0] });
     } catch (error) {
