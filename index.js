@@ -3,10 +3,10 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const pool = require("./config/db");
+const labelRoutes = require("./routes/labelRoutes.js");
 const taskRoutes = require("./routes/taskRoutes");
 const taskInstanceRoutes = require("./routes/taskInstanceRoutes");
 const { notFoundHandler, errorHandler } = require("./middleware/errorHandler");
-const labelRoutes = require("./routes/labelRoutes.js");
 const userRoutes = require("./routes/userRoutes");
 const teamRoutes = require("./routes/teamRoutes");
 
