@@ -91,8 +91,13 @@ task API issues and is therefore not part of these write endpoints.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/labels` | List labels with their task counts |
+| `GET` | `/labels/:id` | Read one label |
 | `POST` | `/labels` | Create a label from `name` and `color` |
+| `PATCH` | `/labels/:id` | Change a label's name or color |
 | `DELETE` | `/labels/:id` | Delete an unused label |
+
+Label responses contain numeric `id`, `name`, `color` and `taskCount` (number of
+active tasks using the label). A label still linked to a task cannot be deleted.
 
 ## Users
 
@@ -102,6 +107,9 @@ task API issues and is therefore not part of these write endpoints.
 | `POST` | `/users` | Create a user from `name`, `email`, and `initials` |
 | `DELETE` | `/users/:id` | Deactivate a user |
 
+Users contain numeric `id`, `name`, `email` and `initials`. Deactivated users no
+longer appear in `GET /users`.
+
 ## Teams
 
 | Method | Path | Purpose |
@@ -110,6 +118,14 @@ task API issues and is therefore not part of these write endpoints.
 | `POST` | `/teams` | Create a team with `name`, `initials`, `createdByUserId`, and `memberIds` |
 | `PATCH` | `/teams/:id` | Update team data and members |
 | `DELETE` | `/teams/:id` | Delete a team when it is not required by active work |
+
+Teams contain numeric `id`, `name`, `initials`, `createdByUserId` and `members`.
+Each member has `id`, `name`, `initials` and `role`. `memberIds` in a create or
+update request must refer to active users. Deleting a team with active assigned
+tasks returns `409`.
+
+For these reference endpoints, successful reads, creates and updates also use
+`{ "data": ... }`, like the task endpoints.
 
 ## Required status codes
 
