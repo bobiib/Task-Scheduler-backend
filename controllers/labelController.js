@@ -1,121 +1,52 @@
-const {
-    getAllLabels,
-    getLabelById,
-    createLabel,
-    updateLabel,
-    deleteLabelById
-} = require("../models/labelModel.js");
+const labels = require("../models/labelModel");
+const HttpError = require("../utils/httpError");
+const { positiveId, requiredText } = require("../utils/referenceValidation");
 
-function isValidText(value, maxLength) {
-    return typeof value === "string" && value.trim().length > 0 && value.trim().length <= maxLength;
-}
-
-function handleDatabaseError(error, res) {
-    if (error.code === "ER_DUP_ENTRY") {
-        return res.status(409).json({ message: "Ein Label mit diesem Namen existiert bereits." });
-    }
-    console.error("Label-API:", error.message);
-    return res.status(500).json({ message: "Interner Serverfehler." });
-}
-
-async function getLabels(req, res) {
+async function getLabels(req, res, next) {
     try {
-        const labels = await getAllLabels();
-        return res.status(200).json(labels);
-    } catch (error) {
-        return handleDatabaseError(error, res);
-    }
+        res.json({ data: await labels.getAllLabels() });
+    } catch (error) { next(error); }
 }
 
-async function getLabel(req, res) {
-    const id = Number(req.params.id);
-    if (!Number.isSafeInteger(id) || id <= 0) {
-        return res.status(400).json({ message: "Die ID muss eine positive ganze Zahl sein." });
-    }
-
+async function getLabel(req, res, next) {
     try {
-        const label = await getLabelById(id);
-        if (!label) {
-            return res.status(404).json({ message: "Label nicht gefunden." });
+        const label = await labels.getLabelById(positiveId(req.params.id));
+        if (!label) throw new HttpError(404, "NOT_FOUND", "Label not found.");
+        res.json({ data: label });
+    } catch (error) { next(error); }
+}
+
+async function postLabel(req, res, next) {
+    try {
+        const name = requiredText(req.body?.name, "name", 100);
+        const color = requiredText(req.body?.color, "color", 50);
+        res.status(201).json({ data: await labels.createLabel(name, color) });
+    } catch (error) { next(error); }
+}
+
+async function patchLabel(req, res, next) {
+    try {
+        const id = positiveId(req.params.id);
+        const current = await labels.getLabelById(id);
+        if (!current) throw new HttpError(404, "NOT_FOUND", "Label not found.");
+        if (req.body?.name === undefined && req.body?.color === undefined) {
+            throw new HttpError(400, "VALIDATION_ERROR", "Provide name or color.");
         }
-        return res.status(200).json(label);
-    } catch (error) {
-        return handleDatabaseError(error, res);
-    }
+        const name = req.body.name === undefined ? current.name : requiredText(req.body.name, "name", 100);
+        const color = req.body.color === undefined ? current.color : requiredText(req.body.color, "color", 50);
+        res.json({ data: await labels.updateLabel(id, name, color) });
+    } catch (error) { next(error); }
 }
 
-async function postLabel(req, res) {
-    const name = req.body?.name;
-    const color = req.body?.color;
-
-    if (!isValidText(name, 100)) {
-        return res.status(400).json({ message: "name muss ein Text mit 1 bis 100 Zeichen sein." });
-    }
-    if (!isValidText(color, 50)) {
-        return res.status(400).json({ message: "color muss ein Text mit 1 bis 50 Zeichen sein." });
-    }
-
+async function deleteLabel(req, res, next) {
     try {
-        const label = await createLabel(name.trim(), color.trim());
-        return res.status(201).json(label);
-    } catch (error) {
-        return handleDatabaseError(error, res);
-    }
-}
-
-async function patchLabel(req, res) {
-    const id = Number(req.params.id);
-    if (!Number.isSafeInteger(id) || id <= 0) {
-        return res.status(400).json({ message: "Die ID muss eine positive ganze Zahl sein." });
-    }
-
-    const name = req.body?.name;
-    const color = req.body?.color;
-    if (name === undefined && color === undefined) {
-        return res.status(400).json({ message: "Mindestens name oder color muss angegeben werden." });
-    }
-    if (name !== undefined && !isValidText(name, 100)) {
-        return res.status(400).json({ message: "name muss ein Text mit 1 bis 100 Zeichen sein." });
-    }
-    if (color !== undefined && !isValidText(color, 50)) {
-        return res.status(400).json({ message: "color muss ein Text mit 1 bis 50 Zeichen sein." });
-    }
-
-    try {
-        const existingLabel = await getLabelById(id);
-        if (!existingLabel) {
-            return res.status(404).json({ message: "Label nicht gefunden." });
+        const id = positiveId(req.params.id);
+        if (!await labels.getLabelById(id)) throw new HttpError(404, "NOT_FOUND", "Label not found.");
+        if (!await labels.deleteLabelById(id)) {
+            throw new HttpError(409, "CONFLICT", "A task still uses this label.");
         }
-
-        const label = await updateLabel(
-            id,
-            name === undefined ? existingLabel.name : name.trim(),
-            color === undefined ? existingLabel.color : color.trim()
-        );
-        if (!label) {
-            return res.status(404).json({ message: "Label nicht gefunden." });
-        }
-        return res.status(200).json(label);
-    } catch (error) {
-        return handleDatabaseError(error, res);
-    }
-}
-
-async function deleteLabel(req, res) {
-    const id = Number(req.params.id);
-    if (!Number.isSafeInteger(id) || id <= 0) {
-        return res.status(400).json({ message: "Die ID muss eine positive ganze Zahl sein." });
-    }
-
-    try {
-        const deleted = await deleteLabelById(id);
-        if (!deleted) {
-            return res.status(404).json({ message: "Label nicht gefunden." });
-        }
-        return res.status(204).send();
-    } catch (error) {
-        return handleDatabaseError(error, res);
-    }
+        res.status(204).send();
+    } catch (error) { next(error); }
 }
 
 module.exports = { getLabels, getLabel, postLabel, patchLabel, deleteLabel };

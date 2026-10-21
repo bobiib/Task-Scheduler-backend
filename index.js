@@ -7,6 +7,8 @@ const labelRoutes = require("./routes/labelRoutes.js");
 const taskRoutes = require("./routes/taskRoutes");
 const taskInstanceRoutes = require("./routes/taskInstanceRoutes");
 const { notFoundHandler, errorHandler } = require("./middleware/errorHandler");
+const userRoutes = require("./routes/userRoutes");
+const teamRoutes = require("./routes/teamRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,6 +16,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use("/api/labels", labelRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/teams", teamRoutes);
 
 app.get("/", (req, res) => {
     res.send("Task-Scheduler Backend läuft!");
