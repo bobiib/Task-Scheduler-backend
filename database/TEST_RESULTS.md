@@ -66,3 +66,19 @@ Lücken in den vergebenen IDs entstehen.
 
 Dieser Nachweis betrifft die Datenbankregeln. Frontend- und API-Tests sind
 separate Prüfungen.
+
+## Issue #24 – Wiederkehrende Aufgaben (28.10.2026)
+
+Geprüft mit einer separaten MariaDB 11.8:
+
+- Das bestehende Schema und die bisherigen Seed-Daten lassen sich importieren.
+- Ein erneuter Schemaimport erhält alle vorhandenen Datensätze.
+- Die ergänzten Seed-Daten enthalten neun Termine. Jeder der drei
+  wiederkehrenden Beispiel-Tasks hat zwei Termine im passenden Abstand
+  (ein Tag oder eine Woche).
+- Auch nach zweimaligem Seed-Import entstehen keine Duplikate. Zusätzlich
+  angelegte eigene Tasks und ihre Termine samt Abschlussstatus bleiben erhalten.
+- `npm run test:db`: **58 von 58 Prüfungen bestanden**.
+
+Die Wiederholungstabellen waren bereits vorhanden. Für dieses Issue war keine
+zusätzliche Schemaänderung oder Migration nötig.

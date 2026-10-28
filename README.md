@@ -74,6 +74,20 @@ Password: Wert von MARIADB_ROOT_PASSWORD
 
 Danach `database/schema.sql` öffnen, das Schema `task_scheduler` auswählen und die gesamte Datei ausführen.
 
+### Wiederkehrende Aufgaben (Issue #24)
+
+Die benötigten Tabellen sind bereits in `database/schema.sql` enthalten.
+Deshalb ist für Issue #24 keine zusätzliche Schemaänderung oder Migration nötig.
+
+- `task_recurrences` speichert eine Wiederholungsregel pro Task, zum Beispiel täglich oder wöchentlich.
+- `recurrence_weekdays` speichert die Wochentage einer Regel (Montag = 1, Sonntag = 7).
+- `task_instances` speichert die einzelnen Termine mit eigenem Status und Abschlussdatum.
+
+Ein Task kann mehrere Termine haben. Derselbe Termin (Task, Datum und Uhrzeit)
+kann nur einmal gespeichert werden. Die Beispieldaten enthalten für jeden
+wiederkehrenden Task zwei Termine. Sie werden im Seed fest eingetragen;
+die automatische Erzeugung übernimmt die Wiederholungslogik.
+
 ## 5. Entwicklungsdaten importieren
 
 Für eine lokale Entwicklungsumgebung kann anschließend `database/seed.sql`

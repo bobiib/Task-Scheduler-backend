@@ -220,13 +220,17 @@ VALUES
     (@team_meeting_recurrence_id, 4);
 
 -- Concrete task instances ---------------------------------------------------
+-- Wiederkehrende Tasks haben hier jeweils zwei einzelne Termine.
 INSERT INTO task_instances (task_id, due_date, due_time, status, completed_at)
 VALUES
     (@status_report_task_id, '2026-10-14', '17:00:00', 'open', NULL),
     (@sprint_planning_task_id, '2026-10-14', '14:00:00', 'open', NULL),
+    (@sprint_planning_task_id, '2026-10-21', '14:00:00', 'open', NULL),
     (@backup_task_id, '2026-10-14', '18:30:00', 'open', NULL),
+    (@backup_task_id, '2026-10-15', '18:30:00', 'open', NULL),
     (@mockups_task_id, '2026-09-02', '12:00:00', 'completed', '2026-09-02 11:45:00'),
     (@team_meeting_task_id, '2026-10-15', '09:00:00', 'open', NULL),
+    (@team_meeting_task_id, '2026-10-22', '09:00:00', 'open', NULL),
     (@task_api_task_id, '2026-10-14', '16:00:00', 'open', NULL)
 ON DUPLICATE KEY UPDATE
     status = VALUES(status),
