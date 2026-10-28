@@ -116,13 +116,14 @@ async function loadRecurrences(connection, taskId = null) {
 }
 
 // Creates the missing instances of recurring tasks up to HORIZON_DAYS from today.
-async function generateInstances(connection = pool, taskId = null) {
+// Without `from`, generation continues after the latest existing instance.
+async function generateInstances(connection = pool, taskId = null, from = null) {
     const until = addDays(today(), HORIZON_DAYS);
 
     for (const { taskId: id, dueTime, lastDate, rule } of await loadRecurrences(connection, taskId)) {
-        const from = lastDate ? addDays(lastDate, 1) : rule.startDate;
+        const start = from ?? (lastDate ? addDays(lastDate, 1) : rule.startDate);
 
-        for (const date of getOccurrences(rule, from, until)) {
+        for (const date of getOccurrences(rule, start, until)) {
             await connection.query(
                 "INSERT IGNORE INTO task_instances (task_id, due_date, due_time) VALUES (?, ?, ?)",
                 [id, date, dueTime]
@@ -138,19 +139,21 @@ async function replaceOpenInstances(connection, taskId, rule, task) {
         [taskId]
     );
 
+    // Completed instances may lie in the future, so generation restarts at today.
+    await generateInstances(connection, taskId, today());
+
     const rows = await connection.query(
         "SELECT COUNT(*) AS count FROM task_instances WHERE task_id = ?",
         [taskId]
     );
 
     if (Number(rows[0].count) === 0) {
+        const startDate = rule && rule.startDate < today() ? today() : rule?.startDate;
         await connection.query(
             "INSERT INTO task_instances (task_id, due_date, due_time) VALUES (?, ?, ?)",
-            [taskId, rule ? getFirstOccurrence(rule) : task.dueDate, task.dueTime]
+            [taskId, rule ? getFirstOccurrence({ ...rule, startDate }) : task.dueDate, task.dueTime]
         );
     }
-
-    await generateInstances(connection, taskId);
 }
 
 async function getTaskRow(connection, taskId) {

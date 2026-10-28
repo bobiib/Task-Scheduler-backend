@@ -114,6 +114,10 @@ on its own via `PATCH /task-instances/:instanceId/status`. When the rule of a
 task changes, its open instances from today on are rebuilt from the new rule;
 completed instances are kept.
 
+Completing an instance (`{ "completed": true }`) changes only that instance;
+`{ "completed": false }` reopens it. The response is the updated task card.
+Unknown instances return `404 TASK_INSTANCE_NOT_FOUND`.
+
 Reminder rules from the seed are returned for display only.
 
 ## Labels
