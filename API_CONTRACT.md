@@ -29,6 +29,7 @@ completed independently.
   "dueDate": "2026-10-14",
   "dueTime": "17:00",
   "scheduleType": "date",
+  "schedule": null,
   "recurrence": null,
   "reminder": "3 Tage vorher",
   "labels": [
@@ -81,6 +82,24 @@ Status body:
 ```
 
 At most one of `assignedUserId` and `assignedTeamId` may be set.
+
+## Scheduling
+
+`scheduleType` is `date` (default), `week` or `weekday_in_month`. For the
+latter two `dueDate` is ignored and calculated from these fields:
+
+| Field | `week` | `weekday_in_month` |
+| --- | --- | --- |
+| `scheduleYear` | required | required |
+| `scheduleMonth` (1–12) | required | required |
+| `scheduleWeekOfMonth` (1–5) | required | required |
+| `scheduleWeekday` (1 = Monday … 7 = Sunday) | – | required |
+
+Week N of a month covers the days `7N-6` to `7N`. A `week` task is due on the
+last day of that week (or the month's last day), a `weekday_in_month` task on
+the given weekday in it, e.g. week 2 + weekday 3 = second Wednesday. A week
+that does not exist in the month returns `400`. Task cards return these values
+as `schedule` (`null` for `date`).
 
 ## Recurrence
 

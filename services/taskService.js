@@ -156,6 +156,11 @@ async function replaceOpenInstances(connection, taskId, rule, task) {
     }
 }
 
+function scheduleValues(task) {
+    const { type, year, month, weekOfMonth, weekday } = task.schedule;
+    return [type, type === "date" ? task.dueDate : null, year, month, weekOfMonth, weekday];
+}
+
 async function getTaskRow(connection, taskId) {
     const rows = await connection.query(
         `SELECT
@@ -163,6 +168,11 @@ async function getTaskRow(connection, taskId) {
             t.description,
             t.assigned_user_id,
             t.assigned_team_id,
+            t.schedule_type,
+            t.schedule_year,
+            t.schedule_month,
+            t.schedule_week_of_month,
+            t.schedule_weekday,
             DATE_FORMAT(ti.due_date, '%Y-%m-%d') AS due_date,
             TIME_FORMAT(ti.due_time, '%H:%i:%s') AS due_time
          FROM tasks t
@@ -224,13 +234,14 @@ async function createTask(body) {
         const result = await connection.query(
             `INSERT INTO tasks (
                 title, description, schedule_type, schedule_date,
+                schedule_year, schedule_month, schedule_week_of_month, schedule_weekday,
                 default_due_time, created_by_user_id,
                 assigned_user_id, assigned_team_id
-             ) VALUES (?, ?, 'date', ?, ?, ?, ?, ?)`,
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 task.title,
                 task.description,
-                task.dueDate,
+                ...scheduleValues(task),
                 task.dueTime,
                 createdByUserId,
                 task.assignedUserId,
@@ -274,7 +285,8 @@ async function updateTask(id, body) {
             `UPDATE tasks
              SET title = ?, description = ?, default_due_time = ?,
                  assigned_user_id = ?, assigned_team_id = ?,
-                 schedule_date = IF(schedule_type = 'date', ?, schedule_date)
+                 schedule_type = ?, schedule_date = ?, schedule_year = ?,
+                 schedule_month = ?, schedule_week_of_month = ?, schedule_weekday = ?
              WHERE id = ?`,
             [
                 task.title,
@@ -282,12 +294,13 @@ async function updateTask(id, body) {
                 task.dueTime,
                 task.assignedUserId,
                 task.assignedTeamId,
-                task.dueDate,
+                ...scheduleValues(task),
                 taskId
             ]
         );
 
-        if (body.dueDate !== undefined || body.scheduleDate !== undefined || body.dueTime !== undefined) {
+        const scheduleChanged = Object.keys(body).some((key) => key.startsWith("schedule"));
+        if (scheduleChanged || body.dueDate !== undefined || body.dueTime !== undefined) {
             await connection.query(
                 `UPDATE task_instances
                  SET due_date = ?, due_time = ?
