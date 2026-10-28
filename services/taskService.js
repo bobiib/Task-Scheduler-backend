@@ -6,6 +6,7 @@ const {
     parseId,
     parseTaskInput
 } = require("../utils/taskValidation");
+const { parseRecurrence, getFirstOccurrence } = require("../utils/recurrence");
 
 async function ensureRecordExists(connection, table, id, fieldName, activeOnly = false) {
     if (id === null) {
@@ -32,6 +33,73 @@ async function replaceLabels(connection, taskId, labelIds) {
             [taskId, labelId]
         );
     }
+}
+
+async function saveRecurrence(connection, taskId, rule) {
+    await connection.query("DELETE FROM task_recurrences WHERE task_id = ?", [taskId]);
+
+    if (!rule) {
+        return;
+    }
+
+    const result = await connection.query(
+        `INSERT INTO task_recurrences (
+            task_id, repeat_type, start_date, end_date,
+            day_of_month, week_of_month, weekday, month_of_year
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+            taskId,
+            rule.type,
+            rule.startDate,
+            rule.endDate,
+            rule.dayOfMonth,
+            rule.weekOfMonth,
+            rule.weekday,
+            rule.monthOfYear
+        ]
+    );
+
+    for (const weekday of rule.weekdays) {
+        await connection.query(
+            "INSERT INTO recurrence_weekdays (recurrence_id, weekday) VALUES (?, ?)",
+            [Number(result.insertId), weekday]
+        );
+    }
+}
+
+async function findRecurrence(taskId) {
+    const rows = await pool.query(
+        `SELECT
+            tr.repeat_type,
+            DATE_FORMAT(tr.start_date, '%Y-%m-%d') AS start_date,
+            DATE_FORMAT(tr.end_date, '%Y-%m-%d') AS end_date,
+            tr.day_of_month,
+            tr.week_of_month,
+            tr.weekday,
+            tr.month_of_year,
+            GROUP_CONCAT(rw.weekday ORDER BY rw.weekday) AS weekdays
+         FROM task_recurrences tr
+         LEFT JOIN recurrence_weekdays rw ON rw.recurrence_id = tr.id
+         WHERE tr.task_id = ?
+         GROUP BY tr.id`,
+        [taskId]
+    );
+
+    if (rows.length === 0) {
+        return null;
+    }
+
+    const row = rows[0];
+    return {
+        type: row.repeat_type,
+        startDate: row.start_date,
+        endDate: row.end_date,
+        weekdays: row.weekdays ? String(row.weekdays).split(",").map(Number) : [],
+        dayOfMonth: row.day_of_month,
+        weekOfMonth: row.week_of_month,
+        weekday: row.weekday,
+        monthOfYear: row.month_of_year
+    };
 }
 
 async function getTaskRow(connection, taskId) {
@@ -72,6 +140,7 @@ async function getTask(id) {
 
     return {
         ...cards[0],
+        recurrenceRule: await findRecurrence(taskId),
         instances: cards.map((card) => ({
             id: card.instanceId,
             dueDate: card.dueDate,
@@ -84,6 +153,10 @@ async function getTask(id) {
 async function createTask(body) {
     const task = parseTaskInput(body);
     const createdByUserId = parseId(body.createdByUserId, "createdByUserId");
+    const recurrence = parseRecurrence(body.recurrence, task.dueDate);
+    if (recurrence) {
+        task.dueDate = getFirstOccurrence(recurrence);
+    }
     const connection = await pool.getConnection();
 
     try {
@@ -111,6 +184,7 @@ async function createTask(body) {
         const taskId = Number(result.insertId);
 
         await replaceLabels(connection, taskId, task.labelIds ?? []);
+        await saveRecurrence(connection, taskId, recurrence);
         const instanceResult = await connection.query(
             "INSERT INTO task_instances (task_id, due_date, due_time) VALUES (?, ?, ?)",
             [taskId, task.dueDate, task.dueTime]
@@ -169,6 +243,10 @@ async function updateTask(id, body) {
 
         if (task.labelIds !== undefined) {
             await replaceLabels(connection, taskId, task.labelIds);
+        }
+
+        if (body.recurrence !== undefined) {
+            await saveRecurrence(connection, taskId, parseRecurrence(body.recurrence, task.dueDate));
         }
 
         await connection.commit();
