@@ -99,6 +99,14 @@ function matches(rule, date) {
     }
 }
 
+function addDays(value, days) {
+    return toText(new Date(toDate(value).getTime() + days * DAY_MS));
+}
+
+function today() {
+    return toText(new Date());
+}
+
 // Returns all dates (YYYY-MM-DD) between from and to that match the rule.
 function getOccurrences(rule, from, to) {
     const first = from > rule.startDate ? from : rule.startDate;
@@ -117,8 +125,7 @@ function getOccurrences(rule, from, to) {
 
 // First matching date within one year after the start date.
 function getFirstOccurrence(rule) {
-    const oneYearLater = toText(new Date(toDate(rule.startDate).getTime() + 366 * DAY_MS));
-    const [first] = getOccurrences(rule, rule.startDate, oneYearLater);
+    const [first] = getOccurrences(rule, rule.startDate, addDays(rule.startDate, 366));
 
     if (!first) {
         throw validationError("recurrence does not produce any date.");
@@ -130,5 +137,7 @@ function getFirstOccurrence(rule) {
 module.exports = {
     parseRecurrence,
     getOccurrences,
-    getFirstOccurrence
+    getFirstOccurrence,
+    addDays,
+    today
 };

@@ -108,6 +108,12 @@ At most one of `assignedUserId` and `assignedTeamId` may be set.
 with a rule, its first instance is the first date that matches the rule.
 Months without the requested day (e.g. 31) are skipped.
 
+Instances of recurring tasks are created automatically up to 30 days ahead
+whenever `GET /tasks` or `GET /tasks/:id` is called. Each instance is completed
+on its own via `PATCH /task-instances/:instanceId/status`. When the rule of a
+task changes, its open instances from today on are rebuilt from the new rule;
+completed instances are kept.
+
 Reminder rules from the seed are returned for display only.
 
 ## Labels
