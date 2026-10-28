@@ -247,6 +247,20 @@ VALUES
     (@task_api_task_id, 30, 'minutes', TRUE)
 ON DUPLICATE KEY UPDATE is_active = TRUE;
 
+-- Beispielzustellungen: 30 Minuten vor den beiden Backup-Terminen.
+-- Bereits vorhandene Zustellungen behalten ihren Status.
+INSERT IGNORE INTO reminder_deliveries (
+    task_id, reminder_id, task_instance_id, recipient_user_id, scheduled_for
+)
+SELECT
+    ti.task_id, r.id, ti.id, @dmytro_id,
+    TIMESTAMP(ti.due_date, ti.due_time) - INTERVAL r.amount MINUTE
+FROM task_instances ti
+JOIN task_reminders r ON r.task_id = ti.task_id
+WHERE ti.task_id = @backup_task_id
+  AND r.amount = 30
+  AND r.unit = 'minutes';
+
 COMMIT;
 
 -- Compact verification output for database clients.
@@ -260,4 +274,6 @@ SELECT 'tasks', COUNT(*) FROM tasks
 UNION ALL
 SELECT 'task_instances', COUNT(*) FROM task_instances
 UNION ALL
-SELECT 'task_reminders', COUNT(*) FROM task_reminders;
+SELECT 'task_reminders', COUNT(*) FROM task_reminders
+UNION ALL
+SELECT 'reminder_deliveries', COUNT(*) FROM reminder_deliveries;

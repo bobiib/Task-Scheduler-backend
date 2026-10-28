@@ -82,3 +82,20 @@ Geprüft mit einer separaten MariaDB 11.8:
 
 Die Wiederholungstabellen waren bereits vorhanden. Für dieses Issue war keine
 zusätzliche Schemaänderung oder Migration nötig.
+
+## Issue #25 – Erinnerungen (28.10.2026)
+
+Geprüft mit einer separaten MariaDB 11.8:
+
+- Das bestehende Schema und die bisherigen Seed-Daten lassen sich importieren.
+  Ein erneuter Schemaimport erhält alle vorhandenen Datensätze.
+- Die zwei neuen Beispielzustellungen gehören zum richtigen Task, Termin und
+  Empfänger. Ihr Status ist zunächst `pending`, der Versandzeitpunkt liegt
+  jeweils 30 Minuten vor dem Backup-Termin.
+- Nach Änderungen auf `sent` beziehungsweise `failed` bleiben Status,
+  Versanddatum und Fehlermeldung bei einem erneuten Seed-Import erhalten.
+  Es entstehen keine Duplikate; eigene Tasks und Erinnerungen bleiben unverändert.
+- `npm run test:db`: **58 von 58 Prüfungen bestanden**.
+
+Die Erinnerungstabellen waren bereits vorhanden. Für dieses Issue war keine
+zusätzliche Schemaänderung oder Migration nötig.

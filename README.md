@@ -88,6 +88,20 @@ kann nur einmal gespeichert werden. Die Beispieldaten enthalten für jeden
 wiederkehrenden Task zwei Termine. Sie werden im Seed fest eingetragen;
 die automatische Erzeugung übernimmt die Wiederholungslogik.
 
+### Erinnerungen (Issue #25)
+
+Auch die Tabellen für Erinnerungen sind bereits im Schema enthalten.
+Für Issue #25 ist deshalb keine zusätzliche Schemaänderung oder Migration nötig.
+
+- `task_reminders` speichert den Abstand zum Task-Termin, zum Beispiel 30 Minuten vorher.
+- `reminder_deliveries` ordnet eine Zustellung dem Task, einem einzelnen Termin
+  und einem Empfänger zu. `scheduled_for` speichert den geplanten Versandzeitpunkt.
+- Der Status ist `pending` (geplant), `sent` (versendet) oder `failed` (fehlgeschlagen).
+  Bei `sent` muss auch `sent_at` gesetzt sein. Versandfehler können in `error_message` gespeichert werden.
+
+Die Seed-Daten enthalten zwei geplante Beispielzustellungen für die Backup-Termine,
+jeweils 30 Minuten vorher. Beim erneuten Import bleiben vorhandene Zustellstatus erhalten.
+
 ## 5. Entwicklungsdaten importieren
 
 Für eine lokale Entwicklungsumgebung kann anschließend `database/seed.sql`
