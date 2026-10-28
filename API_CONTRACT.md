@@ -137,7 +137,23 @@ Completing an instance (`{ "completed": true }`) changes only that instance;
 `{ "completed": false }` reopens it. The response is the updated task card.
 Unknown instances return `404 TASK_INSTANCE_NOT_FOUND`.
 
-Reminder rules from the seed are returned for display only.
+## Reminders
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/tasks/:id/reminders` | List the reminders of a task |
+| `POST` | `/tasks/:id/reminders` | Create a reminder |
+| `PATCH` | `/reminders/:id` | Change `amount`, `unit` or `isActive` |
+| `DELETE` | `/reminders/:id` | Delete a reminder |
+
+```json
+{ "id": 4, "taskId": 1, "amount": 3, "unit": "days", "isActive": true }
+```
+
+`amount` is a positive integer, `unit` is `minutes`, `hours`, `days` or
+`weeks`, `isActive` defaults to `true`. The same `amount` and `unit` twice on
+one task returns `409`. Task cards still show the first active reminder as text
+in `reminder`.
 
 ## Labels
 

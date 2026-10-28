@@ -9,6 +9,7 @@ const taskInstanceRoutes = require("./routes/taskInstanceRoutes");
 const { notFoundHandler, errorHandler } = require("./middleware/errorHandler");
 const userRoutes = require("./routes/userRoutes");
 const teamRoutes = require("./routes/teamRoutes");
+const reminderRoutes = require("./routes/reminderRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -41,6 +42,7 @@ app.get("/health", async(req, res) => {
 
 app.use("/api/tasks", taskRoutes);
 app.use("/api/task-instances", taskInstanceRoutes);
+app.use("/api/reminders", reminderRoutes);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
