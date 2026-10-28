@@ -45,6 +45,10 @@ async function findTaskCards(where = "", parameters = [], connection = pool) {
             DATE_FORMAT(ti.due_date, '%Y-%m-%d') AS due_date,
             TIME_FORMAT(ti.due_time, '%H:%i') AS due_time,
             t.schedule_type,
+            t.schedule_year,
+            t.schedule_month,
+            t.schedule_week_of_month,
+            t.schedule_weekday,
             tr.repeat_type,
             reminder.amount AS reminder_amount,
             reminder.unit AS reminder_unit,
@@ -121,6 +125,12 @@ async function findTaskCards(where = "", parameters = [], connection = pool) {
             dueDate: row.due_date,
             dueTime: row.due_time,
             scheduleType: row.schedule_type,
+            schedule: row.schedule_type === "date" ? null : {
+                year: row.schedule_year,
+                month: row.schedule_month,
+                weekOfMonth: row.schedule_week_of_month,
+                weekday: row.schedule_weekday
+            },
             recurrence: formatRecurrence(row.repeat_type),
             reminder: formatReminder(row.reminder_amount, row.reminder_unit),
             labels: labelsByTask.get(Number(row.task_id)) ?? [],

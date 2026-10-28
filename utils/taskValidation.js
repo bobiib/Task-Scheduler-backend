@@ -53,13 +53,58 @@ function parseLabelIds(value) {
     return [...new Set(value.map((id) => parseId(id, "labelIds")))];
 }
 
+function parseRange(value, fieldName, min, max) {
+    const number = Number(value);
+    if (value === null || value === undefined || !Number.isInteger(number) || number < min || number > max) {
+        throw validationError(`${fieldName} must be between ${min} and ${max}.`);
+    }
+
+    return number;
+}
+
+// week: due on the last day of the 7-day block (days 1-7, 8-14, ...) of the month.
+// weekday_in_month: due on the given weekday inside that block, e.g. 2nd Wednesday.
+function parseSchedule(body, current) {
+    const type = body.scheduleType ?? current?.schedule_type ?? "date";
+    const empty = { type, year: null, month: null, weekOfMonth: null, weekday: null };
+
+    if (type === "date") {
+        return empty;
+    }
+
+    if (type !== "week" && type !== "weekday_in_month") {
+        throw validationError("scheduleType must be date, week or weekday_in_month.");
+    }
+
+    const schedule = {
+        ...empty,
+        year: parseRange(body.scheduleYear ?? current?.schedule_year, "scheduleYear", 2000, 2100),
+        month: parseRange(body.scheduleMonth ?? current?.schedule_month, "scheduleMonth", 1, 12),
+        weekOfMonth: parseRange(body.scheduleWeekOfMonth ?? current?.schedule_week_of_month, "scheduleWeekOfMonth", 1, 5)
+    };
+
+    const lastDay = new Date(Date.UTC(schedule.year, schedule.month, 0)).getUTCDate();
+    const firstDay = (schedule.weekOfMonth - 1) * 7 + 1;
+    let day = Math.min(schedule.weekOfMonth * 7, lastDay);
+
+    if (type === "weekday_in_month") {
+        schedule.weekday = parseRange(body.scheduleWeekday ?? current?.schedule_weekday, "scheduleWeekday", 1, 7);
+        const firstWeekday = new Date(Date.UTC(schedule.year, schedule.month - 1, firstDay)).getUTCDay() || 7;
+        day = firstDay + (schedule.weekday - firstWeekday + 7) % 7;
+    }
+
+    if (firstDay > lastDay || day > lastDay) {
+        throw validationError("The selected week does not exist in this month.");
+    }
+
+    const pad = (value) => String(value).padStart(2, "0");
+    schedule.dueDate = `${schedule.year}-${pad(schedule.month)}-${pad(day)}`;
+    return schedule;
+}
+
 function parseTaskInput(body, current = null) {
     if (!body || typeof body !== "object" || Array.isArray(body)) {
         throw validationError("A JSON request body is required.");
-    }
-
-    if (body.scheduleType && body.scheduleType !== "date") {
-        throw validationError("Only scheduleType date is supported in Sprint 1.");
     }
 
     const title = body.title === undefined ? current?.title : String(body.title).trim();
@@ -73,7 +118,8 @@ function parseTaskInput(body, current = null) {
             ? null
             : String(body.description).trim();
 
-    const dateValue = body.dueDate ?? body.scheduleDate ?? current?.due_date;
+    const schedule = parseSchedule(body, current);
+    const dateValue = schedule.dueDate ?? body.dueDate ?? body.scheduleDate ?? current?.due_date;
     if (!dateValue) {
         throw validationError("dueDate is required.");
     }
@@ -94,6 +140,7 @@ function parseTaskInput(body, current = null) {
         description,
         dueDate: validateDate(dateValue),
         dueTime: validateTime(body.dueTime ?? current?.due_time ?? "23:59:00"),
+        schedule,
         assignedUserId,
         assignedTeamId,
         labelIds: parseLabelIds(body.labelIds)
