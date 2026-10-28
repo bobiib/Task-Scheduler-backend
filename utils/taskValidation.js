@@ -20,14 +20,14 @@ function parseId(value, fieldName, optional = false) {
     return id;
 }
 
-function validateDate(value) {
+function validateDate(value, fieldName = "dueDate") {
     if (typeof value !== "string" || !DATE_PATTERN.test(value)) {
-        throw validationError("dueDate must use YYYY-MM-DD.");
+        throw validationError(`${fieldName} must use YYYY-MM-DD.`);
     }
 
     const date = new Date(`${value}T00:00:00.000Z`);
     if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
-        throw validationError("dueDate must be a valid date.");
+        throw validationError(`${fieldName} must be a valid date.`);
     }
 
     return value;
@@ -103,5 +103,6 @@ function parseTaskInput(body, current = null) {
 module.exports = {
     validationError,
     parseId,
+    validateDate,
     parseTaskInput
 };

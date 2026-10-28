@@ -82,9 +82,33 @@ Status body:
 
 At most one of `assignedUserId` and `assignedTeamId` may be set.
 
-For Sprint 1, recurrence and reminder data from the seed are returned for
-display. Creating or editing recurrence and reminder rules is outside the four
-task API issues and is therefore not part of these write endpoints.
+## Recurrence
+
+`POST /tasks` and `PATCH /tasks/:id` accept an optional `recurrence` object.
+`null` removes the rule. `GET /tasks/:id` returns it as `recurrenceRule`.
+
+```json
+{
+  "type": "weekly",
+  "startDate": "2026-10-28",
+  "endDate": null,
+  "weekdays": [1, 5]
+}
+```
+
+| `type` | Fields | Default from `startDate` |
+| --- | --- | --- |
+| `daily` | – | – |
+| `weekly` | `weekdays` (1 = Monday … 7 = Sunday) | weekday of start |
+| `monthly_day` | `dayOfMonth` (1–31) | day of start |
+| `monthly_weekday` | `weekOfMonth` (1–5), `weekday` (1–7) | from start |
+| `yearly` | `monthOfYear` (1–12), `dayOfMonth` | from start |
+
+`startDate` defaults to `dueDate`, `endDate` is optional. When a task is created
+with a rule, its first instance is the first date that matches the rule.
+Months without the requested day (e.g. 31) are skipped.
+
+Reminder rules from the seed are returned for display only.
 
 ## Labels
 
