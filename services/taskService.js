@@ -6,7 +6,15 @@ const {
     parseId,
     parseTaskInput
 } = require("../utils/taskValidation");
-const { parseRecurrence, getFirstOccurrence } = require("../utils/recurrence");
+const {
+    parseRecurrence,
+    getOccurrences,
+    getFirstOccurrence,
+    addDays,
+    today
+} = require("../utils/recurrence");
+
+const HORIZON_DAYS = 30;
 
 async function ensureRecordExists(connection, table, id, fieldName, activeOnly = false) {
     if (id === null) {
@@ -67,9 +75,13 @@ async function saveRecurrence(connection, taskId, rule) {
     }
 }
 
-async function findRecurrence(taskId) {
-    const rows = await pool.query(
+async function loadRecurrences(connection, taskId = null) {
+    const rows = await connection.query(
         `SELECT
+            tr.task_id,
+            TIME_FORMAT(t.default_due_time, '%H:%i:%s') AS due_time,
+            (SELECT DATE_FORMAT(MAX(due_date), '%Y-%m-%d')
+             FROM task_instances WHERE task_id = tr.task_id) AS last_date,
             tr.repeat_type,
             DATE_FORMAT(tr.start_date, '%Y-%m-%d') AS start_date,
             DATE_FORMAT(tr.end_date, '%Y-%m-%d') AS end_date,
@@ -79,27 +91,66 @@ async function findRecurrence(taskId) {
             tr.month_of_year,
             GROUP_CONCAT(rw.weekday ORDER BY rw.weekday) AS weekdays
          FROM task_recurrences tr
+         JOIN tasks t ON t.id = tr.task_id AND t.is_active = TRUE
          LEFT JOIN recurrence_weekdays rw ON rw.recurrence_id = tr.id
-         WHERE tr.task_id = ?
+         WHERE ? IS NULL OR tr.task_id = ?
          GROUP BY tr.id`,
+        [taskId, taskId]
+    );
+
+    return rows.map((row) => ({
+        taskId: Number(row.task_id),
+        dueTime: row.due_time,
+        lastDate: row.last_date,
+        rule: {
+            type: row.repeat_type,
+            startDate: row.start_date,
+            endDate: row.end_date,
+            weekdays: row.weekdays ? String(row.weekdays).split(",").map(Number) : [],
+            dayOfMonth: row.day_of_month,
+            weekOfMonth: row.week_of_month,
+            weekday: row.weekday,
+            monthOfYear: row.month_of_year
+        }
+    }));
+}
+
+// Creates the missing instances of recurring tasks up to HORIZON_DAYS from today.
+async function generateInstances(connection = pool, taskId = null) {
+    const until = addDays(today(), HORIZON_DAYS);
+
+    for (const { taskId: id, dueTime, lastDate, rule } of await loadRecurrences(connection, taskId)) {
+        const from = lastDate ? addDays(lastDate, 1) : rule.startDate;
+
+        for (const date of getOccurrences(rule, from, until)) {
+            await connection.query(
+                "INSERT IGNORE INTO task_instances (task_id, due_date, due_time) VALUES (?, ?, ?)",
+                [id, date, dueTime]
+            );
+        }
+    }
+}
+
+// Open future instances follow the old rule, so they are rebuilt from the new one.
+async function replaceOpenInstances(connection, taskId, rule, task) {
+    await connection.query(
+        "DELETE FROM task_instances WHERE task_id = ? AND status = 'open' AND due_date >= CURDATE()",
         [taskId]
     );
 
-    if (rows.length === 0) {
-        return null;
+    const rows = await connection.query(
+        "SELECT COUNT(*) AS count FROM task_instances WHERE task_id = ?",
+        [taskId]
+    );
+
+    if (Number(rows[0].count) === 0) {
+        await connection.query(
+            "INSERT INTO task_instances (task_id, due_date, due_time) VALUES (?, ?, ?)",
+            [taskId, rule ? getFirstOccurrence(rule) : task.dueDate, task.dueTime]
+        );
     }
 
-    const row = rows[0];
-    return {
-        type: row.repeat_type,
-        startDate: row.start_date,
-        endDate: row.end_date,
-        weekdays: row.weekdays ? String(row.weekdays).split(",").map(Number) : [],
-        dayOfMonth: row.day_of_month,
-        weekOfMonth: row.week_of_month,
-        weekday: row.weekday,
-        monthOfYear: row.month_of_year
-    };
+    await generateInstances(connection, taskId);
 }
 
 async function getTaskRow(connection, taskId) {
@@ -127,11 +178,13 @@ async function getTaskRow(connection, taskId) {
 }
 
 async function listTasks() {
+    await generateInstances();
     return findTaskCards();
 }
 
 async function getTask(id) {
     const taskId = parseId(id, "id");
+    await generateInstances(pool, taskId);
     const cards = await findTaskCards("AND t.id = ?", [taskId]);
 
     if (cards.length === 0) {
@@ -140,7 +193,7 @@ async function getTask(id) {
 
     return {
         ...cards[0],
-        recurrenceRule: await findRecurrence(taskId),
+        recurrenceRule: (await loadRecurrences(pool, taskId))[0]?.rule ?? null,
         instances: cards.map((card) => ({
             id: card.instanceId,
             dueDate: card.dueDate,
@@ -189,6 +242,7 @@ async function createTask(body) {
             "INSERT INTO task_instances (task_id, due_date, due_time) VALUES (?, ?, ?)",
             [taskId, task.dueDate, task.dueTime]
         );
+        await generateInstances(connection, taskId);
 
         await connection.commit();
         const cards = await findTaskCards("AND ti.id = ?", [Number(instanceResult.insertId)]);
@@ -246,7 +300,9 @@ async function updateTask(id, body) {
         }
 
         if (body.recurrence !== undefined) {
-            await saveRecurrence(connection, taskId, parseRecurrence(body.recurrence, task.dueDate));
+            const rule = parseRecurrence(body.recurrence, task.dueDate);
+            await saveRecurrence(connection, taskId, rule);
+            await replaceOpenInstances(connection, taskId, rule, task);
         }
 
         await connection.commit();
