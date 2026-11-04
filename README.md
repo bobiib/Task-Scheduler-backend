@@ -170,6 +170,24 @@ Es legt eigene Testdaten innerhalb einer Transaktion an und verwirft alle
 Teständerungen anschliessend mit ROLLBACK. Den Testnachweis findest du in
 `database/TEST_RESULTS.md`.
 
+## 9. E-Mail-Versand
+
+Erinnerungen werden über SMTP verschickt. Dafür in `.env` eintragen:
+
+```env
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM=Task-Scheduler <noreply@example.com>
+```
+
+`SMTP_HOST` und `SMTP_FROM` sind Pflicht. Fehlen sie, bricht der Versand mit
+einer Fehlermeldung ab. `SMTP_SECURE=true` wird für Port 465 verwendet.
+`SMTP_USER` und `SMTP_PASSWORD` können leer bleiben, wenn der Server keine
+Anmeldung verlangt. Versandfehler werden an den Aufrufer weitergegeben.
+
 ## Docker stoppen
 
 ```bash
