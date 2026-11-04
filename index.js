@@ -3,6 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const pool = require("./config/db");
+const { startReminderScheduler } = require("./services/reminderScheduler");
 const labelRoutes = require("./routes/labelRoutes.js");
 const taskRoutes = require("./routes/taskRoutes");
 const taskInstanceRoutes = require("./routes/taskInstanceRoutes");
@@ -54,6 +55,7 @@ async function startServer() {
         app.listen(PORT, () => {
             console.log(`Server läuft auf Port ${PORT}`);
         });
+        startReminderScheduler();
     } catch (error) {
         console.error("MariaDB-Verbindung fehlgeschlagen:", error.message);
         process.exit(1);
