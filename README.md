@@ -188,6 +188,14 @@ einer Fehlermeldung ab. `SMTP_SECURE=true` wird für Port 465 verwendet.
 `SMTP_USER` und `SMTP_PASSWORD` können leer bleiben, wenn der Server keine
 Anmeldung verlangt. Versandfehler werden an den Aufrufer weitergegeben.
 
+Ist `SMTP_HOST` gesetzt, prüft das Backend nach dem Start jede Minute die
+Erinnerungen. Für jeden offenen, zukünftigen Termin wird pro aktiver Erinnerung
+und Empfänger eine Zustellung in `reminder_deliveries` geplant (zugewiesener
+User oder alle Mitglieder des Teams). Fällige Zustellungen werden einmal
+versendet und danach auf `sent` gesetzt, bei einem Fehler auf `failed` mit
+der Meldung in `error_message`. Fehlgeschlagene Zustellungen werden nicht
+erneut versucht.
+
 ## Docker stoppen
 
 ```bash
