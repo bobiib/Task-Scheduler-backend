@@ -2,7 +2,7 @@ const taskService = require("../services/taskService");
 
 async function listTasks(req, res, next) {
     try {
-        const tasks = await taskService.listTasks();
+        const tasks = await taskService.listTasks(req.query);
         res.status(200).json({ data: tasks });
     } catch (error) {
         next(error);

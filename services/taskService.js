@@ -4,6 +4,7 @@ const findTaskCards = require("./taskReader");
 const {
     validationError,
     parseId,
+    validateDate,
     parseTaskInput
 } = require("../utils/taskValidation");
 const {
@@ -190,9 +191,67 @@ async function getTaskRow(connection, taskId) {
     return rows[0];
 }
 
-async function listTasks() {
+const STATUS_FILTERS = {
+    open: "ti.status = 'open'",
+    completed: "ti.status = 'completed'",
+    overdue: "ti.status = 'open' AND TIMESTAMP(ti.due_date, ti.due_time) < NOW()"
+};
+
+// Turns the query parameters of GET /tasks into SQL conditions for findTaskCards.
+function buildTaskFilter(query = {}) {
+    const conditions = [];
+    const parameters = [];
+
+    if (query.from !== undefined) {
+        conditions.push("ti.due_date >= ?");
+        parameters.push(validateDate(query.from, "from"));
+    }
+
+    if (query.to !== undefined) {
+        conditions.push("ti.due_date <= ?");
+        parameters.push(validateDate(query.to, "to"));
+    }
+
+    if (query.from !== undefined && query.to !== undefined && query.from > query.to) {
+        throw validationError("from must not be after to.");
+    }
+
+    if (query.status !== undefined) {
+        if (!Object.hasOwn(STATUS_FILTERS, query.status)) {
+            throw validationError("status must be open, completed or overdue.");
+        }
+        conditions.push(STATUS_FILTERS[query.status]);
+    }
+
+    if (query.labelId !== undefined) {
+        conditions.push("EXISTS (SELECT 1 FROM task_labels tl WHERE tl.task_id = t.id AND tl.label_id = ?)");
+        parameters.push(parseId(query.labelId, "labelId"));
+    }
+
+    if (query.userId !== undefined) {
+        conditions.push("t.assigned_user_id = ?");
+        parameters.push(parseId(query.userId, "userId"));
+    }
+
+    if (query.teamId !== undefined) {
+        conditions.push("t.assigned_team_id = ?");
+        parameters.push(parseId(query.teamId, "teamId"));
+    }
+
+    if (query.recurring !== undefined) {
+        if (query.recurring !== "true" && query.recurring !== "false") {
+            throw validationError("recurring must be true or false.");
+        }
+        conditions.push(query.recurring === "true" ? "tr.id IS NOT NULL" : "tr.id IS NULL");
+    }
+
+    return [conditions.map((condition) => `AND ${condition}`).join(" "), parameters];
+}
+
+async function listTasks(query) {
+    const [where, parameters] = buildTaskFilter(query);
     await generateInstances();
-    return findTaskCards();
+    return findTaskCards(where, parameters);
 }
 
 async function getTask(id) {
