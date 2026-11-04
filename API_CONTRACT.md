@@ -83,6 +83,23 @@ Status body:
 
 At most one of `assignedUserId` and `assignedTeamId` may be set.
 
+## Filters
+
+`GET /tasks` accepts these optional query parameters. They can be combined and
+only instances matching all of them are returned.
+
+| Parameter | Value | Matches |
+| --- | --- | --- |
+| `from`, `to` | `YYYY-MM-DD` | instances due on or after / on or before that date |
+| `status` | `open`, `completed`, `overdue` | `overdue` = open and due before now |
+| `labelId` | label id | tasks with that label |
+| `userId` | user id | tasks assigned to that user |
+| `teamId` | team id | tasks assigned to that team |
+| `recurring` | `true`, `false` | tasks with or without a recurrence rule |
+
+Example: `GET /tasks?from=2026-11-01&to=2026-11-30&status=open&userId=1`.
+Invalid values return `400 VALIDATION_ERROR`.
+
 ## Scheduling
 
 `scheduleType` is `date` (default), `week` or `weekday_in_month`. For the
