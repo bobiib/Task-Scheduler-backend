@@ -196,6 +196,17 @@ versendet und danach auf `sent` gesetzt, bei einem Fehler auf `failed` mit
 der Meldung in `error_message`. Fehlgeschlagene Zustellungen werden nicht
 erneut versucht.
 
+### E-Mail-Erinnerungen testen
+
+```bash
+npm run test:reminders
+```
+
+Der Test braucht eine laufende MariaDB. Der über `DB_USER` konfigurierte
+Benutzer muss eine temporäre Testdatenbank erstellen und löschen können.
+Der Test verwendet einen lokalen SMTP-Empfänger und prüft die Planung, den
+einmaligen Versand und den Status bei einer SMTP-Ablehnung.
+
 ## Docker stoppen
 
 ```bash

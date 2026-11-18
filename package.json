@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "test:db": "node tests/database-relations.js"
+    "test:db": "node tests/database-relations.js",
+    "test:reminders": "node tests/reminder-delivery.js"
   },
   "repository": {
     "type": "git",
