@@ -101,7 +101,7 @@ async function main() {
         );
         const deliverySql = "INSERT INTO reminder_deliveries (task_id, reminder_id, task_instance_id, recipient_user_id, scheduled_for) VALUES (?, ?, ?, ?, '2030-01-10 08:30:00')";
         const delivery = await insert(deliverySql, [task, reminder, instance, assignee]);
-        await insert(deliverySql, [userTask, otherReminder, otherInstance, assignee]);
+        const otherDelivery = await insert(deliverySql, [userTask, otherReminder, otherInstance, assignee]);
         const missingId = Math.max(creator, assignee, team, label, task, userTask,
             teamTask, recurrence, instance, otherInstance, reminder, otherReminder, delivery) + 1;
         await expectValue("Gültige Task-Label-Beziehung", "SELECT COUNT(*) AS value FROM task_labels WHERE task_id = ? AND label_id = ?", [task, label], 1);
@@ -165,7 +165,8 @@ async function main() {
             ["Instanz-Uhrzeit 25:00", "UPDATE task_instances SET due_time = '25:00:00' WHERE id = ?", [instance]],
             ["Negative Instanz-Uhrzeit", "UPDATE task_instances SET due_time = '-00:00:01' WHERE id = ?", [instance]],
             ["Reminder-Abstand 0", "UPDATE task_reminders SET amount = 0 WHERE id = ?", [reminder]],
-            ["Gesendete Zustellung ohne Versanddatum", "UPDATE reminder_deliveries SET status = 'sent' WHERE id = ?", [delivery]]
+            ["Gesendete Zustellung ohne Versanddatum", "UPDATE reminder_deliveries SET status = 'sent' WHERE id = ?", [delivery]],
+            ["Geplante Zustellung mit Versanddatum", "UPDATE reminder_deliveries SET sent_at = '2030-01-10 08:30:00' WHERE id = ?", [delivery]]
         ];
         for (const [description, sql, parameters] of checkTests) {
             await expectError(description, sql, parameters, 4025);
@@ -191,6 +192,19 @@ async function main() {
             "SELECT COUNT(*) AS value FROM task_instances WHERE id = ? AND status = 'open' AND completed_at IS NULL",
             [secondInstance], 1);
 
+        await connection.query("UPDATE tasks SET schedule_date = '2030-01-11' WHERE id = ?", [task]);
+        await expectValue("Task-Änderung erhält Reminder und Abstand",
+            "SELECT COUNT(*) AS value FROM task_reminders WHERE id = ? AND task_id = ? AND amount = 30 AND unit = 'minutes'",
+            [reminder, task], 1);
+        await expectValue("Task-Änderung erhält die geplante Zustellung",
+            "SELECT COUNT(*) AS value FROM reminder_deliveries WHERE id = ? AND reminder_id = ? AND task_instance_id = ? AND status = 'pending' AND scheduled_for = '2030-01-10 08:30:00'",
+            [delivery, reminder, instance], 1);
+        await connection.query(
+            "UPDATE reminder_deliveries SET status = 'sent', sent_at = '2030-01-10 08:30:00' WHERE id = ?", [delivery]);
+        await expectValue("Gesendete Zustellung speichert Versanddatum",
+            "SELECT COUNT(*) AS value FROM reminder_deliveries WHERE id = ? AND status = 'sent' AND sent_at = '2030-01-10 08:30:00'",
+            [delivery], 1);
+
         // 5. RESTRICT: Ersteller mit bestehenden Tasks/Teams nicht löschen.
         await expectError("Ersteller löschen wird verhindert (RESTRICT)",
             "DELETE FROM users WHERE id = ?", [creator], 1451);
@@ -207,6 +221,11 @@ async function main() {
             "SELECT COUNT(*) AS value FROM tasks WHERE id IN (?, ?)", [userTask, teamTask], 2);
         await expectValue("Termin eines anderen Tasks bleibt erhalten",
             "SELECT COUNT(*) AS value FROM task_instances WHERE id = ? AND task_id = ?", [otherInstance, userTask], 1);
+        await expectValue("Reminder eines anderen Tasks bleibt erhalten",
+            "SELECT COUNT(*) AS value FROM task_reminders WHERE id = ? AND task_id = ?", [otherReminder, userTask], 1);
+        await expectValue("Zustellung eines anderen Tasks bleibt erhalten",
+            "SELECT COUNT(*) AS value FROM reminder_deliveries WHERE id = ? AND reminder_id = ? AND status = 'pending'",
+            [otherDelivery, otherReminder], 1);
 
         // SET NULL: eine Zuweisung wird entfernt, der Task bleibt erhalten.
         await connection.query("DELETE FROM users WHERE id = ?", [assignee]);
