@@ -158,15 +158,38 @@ async function main() {
             ["Wiederholungs-Wochentag 8", "UPDATE task_recurrences SET weekday = 8 WHERE id = ?", [recurrence]],
             ["Wiederholungs-Monat 13", "UPDATE task_recurrences SET month_of_year = 13 WHERE id = ?", [recurrence]],
             ["Monatswiederholung ohne Monatstag", "UPDATE task_recurrences SET repeat_type = 'monthly_day' WHERE id = ?", [recurrence]],
+            ["Monatswiederholung ohne Woche", "UPDATE task_recurrences SET repeat_type = 'monthly_weekday', weekday = 1 WHERE id = ?", [recurrence]],
+            ["Jahreswiederholung ohne Monat", "UPDATE task_recurrences SET repeat_type = 'yearly', day_of_month = 10 WHERE id = ?", [recurrence]],
             ["Wochentagsliste mit Wert 8", "INSERT INTO recurrence_weekdays (recurrence_id, weekday) VALUES (?, 8)", [recurrence]],
             ["Abgeschlossene Instanz ohne Abschlussdatum", "UPDATE task_instances SET status = 'completed' WHERE id = ?", [instance]],
             ["Instanz-Uhrzeit 25:00", "UPDATE task_instances SET due_time = '25:00:00' WHERE id = ?", [instance]],
+            ["Negative Instanz-Uhrzeit", "UPDATE task_instances SET due_time = '-00:00:01' WHERE id = ?", [instance]],
             ["Reminder-Abstand 0", "UPDATE task_reminders SET amount = 0 WHERE id = ?", [reminder]],
             ["Gesendete Zustellung ohne Versanddatum", "UPDATE reminder_deliveries SET status = 'sent' WHERE id = ?", [delivery]]
         ];
         for (const [description, sql, parameters] of checkTests) {
             await expectError(description, sql, parameters, 4025);
         }
+
+        await connection.query(
+            "UPDATE task_recurrences SET repeat_type = 'monthly_weekday', week_of_month = 2, weekday = 4 WHERE id = ?",
+            [recurrence]);
+        await expectValue("Gültige Monatswiederholung mit Woche und Wochentag",
+            "SELECT COUNT(*) AS value FROM task_recurrences WHERE task_id = ? AND repeat_type = 'monthly_weekday' AND week_of_month = 2 AND weekday = 4",
+            [task], 1);
+        const secondInstance = await insert(
+            "INSERT INTO task_instances (task_id, due_date, due_time) VALUES (?, '2030-01-10', '00:00:00')", [task]);
+        await expectValue("Zwei Termine am selben Tag mit verschiedenen Uhrzeiten",
+            "SELECT COUNT(*) AS value FROM task_instances WHERE task_id = ? AND due_date = '2030-01-10'", [task], 2);
+        await connection.query(
+            "UPDATE task_instances SET status = 'completed', completed_at = '2030-01-10 12:00:00' WHERE id = ?",
+            [instance]);
+        await expectValue("Abgeschlossener Termin speichert Abschlusszeit",
+            "SELECT COUNT(*) AS value FROM task_instances WHERE id = ? AND status = 'completed' AND completed_at = '2030-01-10 12:00:00'",
+            [instance], 1);
+        await expectValue("Zweiter Termin bleibt offen",
+            "SELECT COUNT(*) AS value FROM task_instances WHERE id = ? AND status = 'open' AND completed_at IS NULL",
+            [secondInstance], 1);
 
         // 5. RESTRICT: Ersteller mit bestehenden Tasks/Teams nicht löschen.
         await expectError("Ersteller löschen wird verhindert (RESTRICT)",
@@ -182,6 +205,8 @@ async function main() {
             "SELECT COUNT(*) AS value FROM recurrence_weekdays WHERE recurrence_id = ?", [recurrence], 0);
         await expectValue("Andere Tasks bleiben erhalten",
             "SELECT COUNT(*) AS value FROM tasks WHERE id IN (?, ?)", [userTask, teamTask], 2);
+        await expectValue("Termin eines anderen Tasks bleibt erhalten",
+            "SELECT COUNT(*) AS value FROM task_instances WHERE id = ? AND task_id = ?", [otherInstance, userTask], 1);
 
         // SET NULL: eine Zuweisung wird entfernt, der Task bleibt erhalten.
         await connection.query("DELETE FROM users WHERE id = ?", [assignee]);
