@@ -2,6 +2,8 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 const pool = require("./config/db");
 const { startReminderScheduler } = require("./services/reminderScheduler");
 const labelRoutes = require("./routes/labelRoutes.js");
@@ -12,13 +14,29 @@ const userRoutes = require("./routes/userRoutes");
 const teamRoutes = require("./routes/teamRoutes");
 const reminderRoutes = require("./routes/reminderRoutes");
 const authRoutes = require("./routes/authRoutes");
+const { requireAuth } = require("./middleware/auth");
+const HttpError = require("./utils/httpError");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const corsOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173").split(",").map((origin) => origin.trim());
 
-app.use(cors());
+function limit(max) {
+    return rateLimit({
+        windowMs: 15 * 60 * 1000,
+        limit: max,
+        handler: (req, res, next) => next(new HttpError(429, "TOO_MANY_REQUESTS", "Too many requests. Try again later."))
+    });
+}
+
+app.set("trust proxy", 1);
+app.use(helmet());
+app.use(cors({ origin: corsOrigins }));
 app.use(express.json());
+app.use("/api", limit(300));
+app.use(["/api/auth/login", "/api/auth/register"], limit(10));
 app.use("/api/auth", authRoutes);
+app.use("/api", requireAuth);
 app.use("/api/labels", labelRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/teams", teamRoutes);

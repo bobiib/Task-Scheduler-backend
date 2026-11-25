@@ -275,9 +275,8 @@ async function getTask(id) {
     };
 }
 
-async function createTask(body) {
+async function createTask(body, createdByUserId) {
     const task = parseTaskInput(body);
-    const createdByUserId = parseId(body.createdByUserId, "createdByUserId");
     const recurrence = parseRecurrence(body.recurrence, task.dueDate);
     if (recurrence) {
         task.dueDate = getFirstOccurrence(recurrence);

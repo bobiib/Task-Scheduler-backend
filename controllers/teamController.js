@@ -68,7 +68,7 @@ async function createTeam(req, res) {
     try {
         const name = requiredText(req.body?.name, "name", 100);
         const initials = requiredText(req.body?.initials, "initials", 10);
-        const creatorId = positiveId(req.body?.createdByUserId, "createdByUserId");
+        const creatorId = req.user.id;
         const ids = memberIds(req.body?.memberIds);
         const adminIds = req.body?.adminIds === undefined
             ? ids.filter((id) => id === creatorId)

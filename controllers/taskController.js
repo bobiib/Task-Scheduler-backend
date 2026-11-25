@@ -11,7 +11,7 @@ async function getTask(req, res) {
 }
 
 async function createTask(req, res) {
-    const task = await taskService.createTask(req.body);
+    const task = await taskService.createTask(req.body, req.user.id);
     res.status(201).json({ data: task });
 }
 
