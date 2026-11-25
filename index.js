@@ -11,12 +11,14 @@ const { notFoundHandler, errorHandler } = require("./middleware/errorHandler");
 const userRoutes = require("./routes/userRoutes");
 const teamRoutes = require("./routes/teamRoutes");
 const reminderRoutes = require("./routes/reminderRoutes");
+const authRoutes = require("./routes/authRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use("/api/auth", authRoutes);
 app.use("/api/labels", labelRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/teams", teamRoutes);

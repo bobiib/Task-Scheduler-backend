@@ -221,12 +221,32 @@ creator becomes admin if they are a member. When a team is updated without
 For these reference endpoints, successful reads, creates and updates also use
 `{ "data": ... }`, like the task endpoints.
 
+## Authentication
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/auth/register` | Create an account from `name`, `email` and `password` |
+| `POST` | `/auth/login` | Log in with `email` and `password` |
+| `GET` | `/auth/me` | Read the logged-in user |
+| `POST` | `/auth/logout` | Log out (`204`) |
+
+Register (`201`) and login (`200`) return
+`{ "data": { "token": "...", "user": { ... } } }`. The user contains `id`,
+`name`, `email` and `initials`; initials are derived from the name. `password`
+needs at least 8 characters. An already registered email returns `409`.
+
+Send the token as `Authorization: Bearer <token>`. It expires after
+`JWT_EXPIRES_IN` (default `8h`). Wrong credentials, inactive users and missing
+or invalid tokens return `401`. Logout is stateless: the client deletes the
+token.
+
 ## Required status codes
 
 - `200` for successful reads and updates
 - `201` for successful creates
 - `204` for successful deletes
 - `400` for validation failures
+- `401` for missing or invalid authentication
 - `404` when a requested record does not exist
 - `409` for unique or relationship conflicts
 - `500` for unexpected server errors
