@@ -34,34 +34,26 @@ async function findReminder(req) {
     return reminder;
 }
 
-async function getReminders(req, res, next) {
-    try {
-        res.json({ data: await reminders.getRemindersByTask(await findTaskId(req)) });
-    } catch (error) { next(error); }
+async function getReminders(req, res) {
+    res.json({ data: await reminders.getRemindersByTask(await findTaskId(req)) });
 }
 
-async function postReminder(req, res, next) {
-    try {
-        const taskId = await findTaskId(req);
-        const { amount, unit, isActive } = parseReminder(req.body);
-        res.status(201).json({ data: await reminders.createReminder(taskId, amount, unit, isActive) });
-    } catch (error) { next(error); }
+async function postReminder(req, res) {
+    const taskId = await findTaskId(req);
+    const { amount, unit, isActive } = parseReminder(req.body);
+    res.status(201).json({ data: await reminders.createReminder(taskId, amount, unit, isActive) });
 }
 
-async function patchReminder(req, res, next) {
-    try {
-        const current = await findReminder(req);
-        const { amount, unit, isActive } = parseReminder(req.body, current);
-        res.json({ data: await reminders.updateReminder(current.id, amount, unit, isActive) });
-    } catch (error) { next(error); }
+async function patchReminder(req, res) {
+    const current = await findReminder(req);
+    const { amount, unit, isActive } = parseReminder(req.body, current);
+    res.json({ data: await reminders.updateReminder(current.id, amount, unit, isActive) });
 }
 
-async function deleteReminder(req, res, next) {
-    try {
-        const current = await findReminder(req);
-        await reminders.deleteReminderById(current.id);
-        res.status(204).send();
-    } catch (error) { next(error); }
+async function deleteReminder(req, res) {
+    const current = await findReminder(req);
+    await reminders.deleteReminderById(current.id);
+    res.status(204).send();
 }
 
 module.exports = { getReminders, postReminder, patchReminder, deleteReminder };

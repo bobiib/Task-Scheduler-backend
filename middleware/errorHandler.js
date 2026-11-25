@@ -1,5 +1,11 @@
 const HttpError = require("../utils/httpError");
 
+const DB_ERRORS = {
+    ER_DUP_ENTRY: [409, "CONFLICT", "A record with these values already exists."],
+    ER_NO_REFERENCED_ROW_2: [400, "INVALID_RELATION", "A referenced record does not exist."],
+    ER_ROW_IS_REFERENCED_2: [409, "CONFLICT", "The record is still used by other records."]
+};
+
 function notFoundHandler(req, res, next) {
     next(new HttpError(404, "ROUTE_NOT_FOUND", "Route not found."));
 }
@@ -9,53 +15,21 @@ function errorHandler(error, req, res, next) {
         return next(error);
     }
 
-    if (error instanceof HttpError) {
-        return res.status(error.status).json({
-            error: {
-                code: error.code,
-                message: error.message,
-                details: error.details
-            }
-        });
-    }
-
     if (error instanceof SyntaxError && error.status === 400 && error.body !== undefined) {
-        return res.status(400).json({
-            error: {
-                code: "INVALID_JSON",
-                message: "The request body contains invalid JSON.",
-                details: []
-            }
-        });
+        error = new HttpError(400, "INVALID_JSON", "The request body contains invalid JSON.");
+    } else if (DB_ERRORS[error.code]) {
+        error = new HttpError(...DB_ERRORS[error.code]);
+    } else if (!(error instanceof HttpError)) {
+        // Log only method, path and stack, never the request body or headers.
+        console.error(`${req.method} ${req.path} failed:`, error.stack || error.message);
+        error = new HttpError(500, "INTERNAL_ERROR", "An unexpected server error occurred.");
     }
 
-    if (error.code === "ER_DUP_ENTRY") {
-        return res.status(409).json({
-            error: {
-                code: "CONFLICT",
-                message: "A record with these values already exists.",
-                details: []
-            }
-        });
-    }
-
-    if (error.code === "ER_NO_REFERENCED_ROW_2") {
-        return res.status(400).json({
-            error: {
-                code: "INVALID_RELATION",
-                message: "A referenced record does not exist.",
-                details: []
-            }
-        });
-    }
-
-    console.error(error);
-
-    return res.status(500).json({
+    res.status(error.status).json({
         error: {
-            code: "INTERNAL_ERROR",
-            message: "An unexpected server error occurred.",
-            details: []
+            code: error.code,
+            message: error.message,
+            details: error.details
         }
     });
 }

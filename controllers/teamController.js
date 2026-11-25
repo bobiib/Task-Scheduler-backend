@@ -59,13 +59,11 @@ async function replaceMembers(conn, teamId, ids, adminIds) {
     }
 }
 
-async function listTeams(req, res, next) {
-    try {
-        res.json({ data: await readTeams() });
-    } catch (error) { next(error); }
+async function listTeams(req, res) {
+    res.json({ data: await readTeams() });
 }
 
-async function createTeam(req, res, next) {
+async function createTeam(req, res) {
     let conn;
     try {
         const name = requiredText(req.body?.name, "name", 100);
@@ -90,13 +88,13 @@ async function createTeam(req, res, next) {
         res.status(201).json({ data: (await readTeams(teamId))[0] });
     } catch (error) {
         if (conn) await conn.rollback();
-        next(error);
+        throw error;
     } finally {
         if (conn) conn.release();
     }
 }
 
-async function updateTeam(req, res, next) {
+async function updateTeam(req, res) {
     let conn;
     try {
         const teamId = positiveId(req.params.id);
@@ -133,13 +131,13 @@ async function updateTeam(req, res, next) {
         res.json({ data: (await readTeams(teamId))[0] });
     } catch (error) {
         if (conn) await conn.rollback();
-        next(error);
+        throw error;
     } finally {
         if (conn) conn.release();
     }
 }
 
-async function deleteTeam(req, res, next) {
+async function deleteTeam(req, res) {
     let conn;
     try {
         const teamId = positiveId(req.params.id);
@@ -157,7 +155,7 @@ async function deleteTeam(req, res, next) {
         res.status(204).send();
     } catch (error) {
         if (conn) await conn.rollback();
-        next(error);
+        throw error;
     } finally {
         if (conn) conn.release();
     }
