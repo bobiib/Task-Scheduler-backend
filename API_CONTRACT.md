@@ -73,7 +73,6 @@ Minimal create-task body:
   "scheduleType": "date",
   "dueDate": "2026-10-14",
   "dueTime": "17:00",
-  "createdByUserId": 1,
   "assignedUserId": 1,
   "assignedTeamId": null,
   "labelIds": [2]
@@ -218,7 +217,7 @@ longer appear in `GET /users`.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/teams` | List teams and their members |
-| `POST` | `/teams` | Create a team with `name`, `initials`, `createdByUserId`, and `memberIds` |
+| `POST` | `/teams` | Create a team with `name`, `initials` and `memberIds` |
 | `PATCH` | `/teams/:id` | Update team data and members |
 | `DELETE` | `/teams/:id` | Delete a team when it is not required by active work |
 
@@ -232,6 +231,10 @@ admin must also be a member. When a team is created without `adminIds`, the
 creator becomes admin if they are a member. When a team is updated without
 `adminIds`, the remaining members keep their stored roles. An update that would
 leave a team without an admin returns `409 LAST_ADMIN`.
+
+The logged-in user is the creator of a new team. Only admins of a team may
+update or delete it, other users get `403 FORBIDDEN`. Deactivating the last
+admin of a team with `DELETE /users/:id` returns `409 LAST_ADMIN`.
 
 For these reference endpoints, successful reads, creates and updates also use
 `{ "data": ... }`, like the task endpoints.
@@ -255,6 +258,14 @@ Send the token as `Authorization: Bearer <token>`. It expires after
 or invalid tokens return `401`. Logout is stateless: the client deletes the
 token.
 
+All other `/api` endpoints need the token. Only `/auth/register`,
+`/auth/login` and `/health` are public. New tasks use the logged-in user as
+creator, `createdByUserId` in the body is ignored.
+
+Rate limits per IP: 300 requests per 15 minutes on `/api`, 10 per 15 minutes on
+`/auth/login` and `/auth/register` together. Above the limit the API returns
+`429 TOO_MANY_REQUESTS`. CORS only allows the origins in `CORS_ORIGIN`.
+
 ## Required status codes
 
 - `200` for successful reads and updates
@@ -262,6 +273,8 @@ token.
 - `204` for successful deletes
 - `400` for validation failures
 - `401` for missing or invalid authentication
+- `403` when the user may not do the action
 - `404` when a requested record does not exist
 - `409` for unique or relationship conflicts
+- `429` when the rate limit is reached
 - `500` for unexpected server errors

@@ -30,6 +30,15 @@ async function createUser(req, res) {
 
 async function deleteUser(req, res) {
     const id = positiveId(req.params.id);
+    const lastAdmin = await pool.query(`
+        SELECT tu.team_id FROM team_users tu
+        WHERE tu.user_id = ? AND tu.role = 'admin' AND NOT EXISTS (
+            SELECT 1 FROM team_users other
+            JOIN users u ON u.id = other.user_id AND u.is_active = TRUE
+            WHERE other.team_id = tu.team_id AND other.role = 'admin' AND other.user_id <> tu.user_id
+        )
+    `, [id]);
+    if (lastAdmin.length) throw new HttpError(409, "LAST_ADMIN", "The user is the last admin of a team.");
     const result = await pool.query(
         "UPDATE users SET is_active = FALSE WHERE id = ? AND is_active = TRUE",
         [id]
