@@ -6,13 +6,14 @@ START TRANSACTION;
 -- example.test addresses are deliberately non-deliverable development data.
 INSERT INTO users (name, email, initials, password_hash, is_active)
 VALUES
-    ('Fabio Erculiani', 'fabio.erculiani@example.test', 'FA', NULL, TRUE),
-    ('Dmytro Yermakov', 'dmytro.yermakov@example.test', 'DY', NULL, TRUE),
-    ('Boris', 'boris@example.test', 'BO', NULL, TRUE),
-    ('Liam Bruno', 'liam.bruno@example.test', 'LB', NULL, TRUE)
+    ('Fabio Erculiani', 'fabio.erculiani@example.test', 'FA', '$2b$10$mJ53HkFsntFwTgifg4vPMeAX/qyhicU3YuMaoZtk5gKOmA8l/u.OO', TRUE),
+    ('Dmytro Yermakov', 'dmytro.yermakov@example.test', 'DY', '$2b$10$ULGitkKzM6Zab9kiGh5PU.FT5id6ja03mD8qeS0azwZQIvC0LwVNq', TRUE),
+    ('Boris', 'boris@example.test', 'BO', '$2b$10$4aWS3Fn05PNW1XndrHEtDeK5cfekiPoPQEVmGmEHGacsEkFLWsFb6', TRUE),
+    ('Liam Bruno', 'liam.bruno@example.test', 'LB', '$2b$10$/CgAEuIGCFJ8rnQdF5v4g.lAGnfyzi2i7BcwilQJ4OXYQkL2h/FT.', TRUE)
 ON DUPLICATE KEY UPDATE
     name = VALUES(name),
     initials = VALUES(initials),
+    password_hash = COALESCE(users.password_hash, VALUES(password_hash)),
     is_active = TRUE;
 
 SELECT id INTO @fabio_id FROM users WHERE email = 'fabio.erculiani@example.test';

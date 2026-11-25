@@ -113,6 +113,10 @@ Das Seed-Skript ist wiederholt ausführbar. Bereits vorhandene Stammdaten werden
 aktualisiert und Beispiel-Tasks nicht dupliziert. Die verwendeten
 `example.test`-E-Mail-Adressen können keine echten E-Mails empfangen.
 
+Die vier Beispielkonten verwenden lokal das Demo-Passwort `TaskSchedulerDemo!`.
+Das Seed-Skript speichert dafür bcrypt-Hashes, ergänzt fehlende Hashes und
+behält bereits gesetzte Passwörter bei. Verwende diese Konten nur lokal.
+
 ## 6. Backend starten
 
 Entwicklungsmodus:
