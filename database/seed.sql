@@ -188,6 +188,35 @@ WHERE title = 'Task-API fertigstellen'
 ORDER BY id
 LIMIT 1;
 
+-- Seed both advanced scheduling modes for the month after the first import.
+SET @seed_month = CAST(DATE_FORMAT(CURRENT_DATE + INTERVAL 1 MONTH, '%Y-%m-01') AS DATE);
+
+INSERT INTO tasks (
+    title, description, schedule_type, schedule_year, schedule_month,
+    schedule_week_of_month, schedule_weekday, default_due_time,
+    created_by_user_id, assigned_user_id, assigned_team_id
+)
+SELECT 'Dokumentation prüfen', 'Review der Projektdokumentation in der zweiten Woche.',
+       'week', YEAR(@seed_month), MONTH(@seed_month), 2, NULL, '17:00:00',
+       @fabio_id, @fabio_id, NULL
+WHERE NOT EXISTS (
+    SELECT 1 FROM tasks WHERE title = 'Dokumentation prüfen' AND created_by_user_id = @fabio_id
+)
+UNION ALL
+SELECT 'Monatliche Retrospektive', 'Verbesserungen für das Projektteam am dritten Donnerstag besprechen.',
+       'weekday_in_month', YEAR(@seed_month), MONTH(@seed_month), 3, 4, '16:00:00',
+       @fabio_id, NULL, @project_team_id
+WHERE NOT EXISTS (
+    SELECT 1 FROM tasks WHERE title = 'Monatliche Retrospektive' AND created_by_user_id = @fabio_id
+);
+
+SELECT id INTO @documentation_task_id FROM tasks
+WHERE title = 'Dokumentation prüfen' AND created_by_user_id = @fabio_id
+ORDER BY id LIMIT 1;
+SELECT id INTO @retro_task_id FROM tasks
+WHERE title = 'Monatliche Retrospektive' AND created_by_user_id = @fabio_id
+ORDER BY id LIMIT 1;
+
 -- Task labels ---------------------------------------------------------------
 INSERT IGNORE INTO task_labels (task_id, label_id)
 VALUES
@@ -196,7 +225,9 @@ VALUES
     (@backup_task_id, @it_label_id),
     (@mockups_task_id, @design_label_id),
     (@team_meeting_task_id, @organisation_label_id),
-    (@task_api_task_id, @development_label_id);
+    (@task_api_task_id, @development_label_id),
+    (@documentation_task_id, @school_label_id),
+    (@retro_task_id, @organisation_label_id);
 
 -- Recurrence definitions ----------------------------------------------------
 INSERT INTO task_recurrences (task_id, repeat_type, start_date)
@@ -204,10 +235,7 @@ VALUES
     (@sprint_planning_task_id, 'weekly', '2026-10-14'),
     (@backup_task_id, 'daily', '2026-10-14'),
     (@team_meeting_task_id, 'weekly', '2026-10-15')
-ON DUPLICATE KEY UPDATE
-    repeat_type = VALUES(repeat_type),
-    start_date = VALUES(start_date),
-    end_date = NULL;
+ON DUPLICATE KEY UPDATE id = task_recurrences.id;
 
 SELECT id INTO @sprint_planning_recurrence_id
 FROM task_recurrences WHERE task_id = @sprint_planning_task_id;
@@ -215,13 +243,15 @@ SELECT id INTO @team_meeting_recurrence_id
 FROM task_recurrences WHERE task_id = @team_meeting_task_id;
 
 -- ISO weekday numbers: Monday = 1, Sunday = 7.
-INSERT IGNORE INTO recurrence_weekdays (recurrence_id, weekday)
-VALUES
-    (@sprint_planning_recurrence_id, 3),
-    (@team_meeting_recurrence_id, 4);
+INSERT INTO recurrence_weekdays (recurrence_id, weekday)
+SELECT r.id, IF(r.id = @sprint_planning_recurrence_id, 3, 4)
+FROM task_recurrences r
+WHERE r.id IN (@sprint_planning_recurrence_id, @team_meeting_recurrence_id)
+  AND r.repeat_type = 'weekly'
+  AND NOT EXISTS (SELECT 1 FROM recurrence_weekdays rw WHERE rw.recurrence_id = r.id);
 
 -- Concrete task instances ---------------------------------------------------
--- Wiederkehrende Tasks haben hier jeweils zwei einzelne Termine.
+-- Bestehende Instanzen behalten ihren Abschlussstatus.
 INSERT INTO task_instances (task_id, due_date, due_time, status, completed_at)
 VALUES
     (@status_report_task_id, '2026-10-14', '17:00:00', 'open', NULL),
@@ -232,10 +262,34 @@ VALUES
     (@mockups_task_id, '2026-09-02', '12:00:00', 'completed', '2026-09-02 11:45:00'),
     (@team_meeting_task_id, '2026-10-15', '09:00:00', 'open', NULL),
     (@team_meeting_task_id, '2026-10-22', '09:00:00', 'open', NULL),
+    (@team_meeting_task_id, '2026-10-29', '09:00:00', 'completed', '2026-10-29 08:55:00'),
     (@task_api_task_id, '2026-10-14', '16:00:00', 'open', NULL)
-ON DUPLICATE KEY UPDATE
-    status = VALUES(status),
-    completed_at = VALUES(completed_at);
+ON DUPLICATE KEY UPDATE id = task_instances.id;
+
+INSERT INTO task_instances (task_id, due_date, due_time)
+SELECT t.id, DATE_ADD(t.month_start, INTERVAL (
+    CASE t.schedule_type
+        WHEN 'week' THEN LEAST(t.schedule_week_of_month * 7, DAY(LAST_DAY(t.month_start))) - 1
+        WHEN 'weekday_in_month' THEN (t.schedule_week_of_month - 1) * 7
+            + MOD(t.schedule_weekday - 1 - WEEKDAY(t.month_start) + 7, 7)
+    END
+) DAY), t.default_due_time
+FROM (
+    SELECT id, schedule_type, schedule_week_of_month, schedule_weekday, default_due_time,
+           STR_TO_DATE(CONCAT_WS('-', schedule_year, schedule_month, '01'), '%Y-%c-%d') AS month_start
+    FROM tasks
+    WHERE id IN (@documentation_task_id, @retro_task_id)
+      AND schedule_type IN ('week', 'weekday_in_month')
+) t
+WHERE NOT EXISTS (SELECT 1 FROM task_instances ti WHERE ti.task_id = t.id);
+
+INSERT INTO task_recurrences (task_id, repeat_type, start_date, week_of_month, weekday)
+SELECT t.id, 'monthly_weekday', MIN(ti.due_date), t.schedule_week_of_month, t.schedule_weekday
+FROM tasks t
+JOIN task_instances ti ON ti.task_id = t.id
+WHERE t.id = @retro_task_id AND t.schedule_type = 'weekday_in_month'
+GROUP BY t.id, t.schedule_week_of_month, t.schedule_weekday
+ON DUPLICATE KEY UPDATE id = task_recurrences.id;
 
 -- Reminder definitions ------------------------------------------------------
 INSERT INTO task_reminders (task_id, amount, unit, is_active)

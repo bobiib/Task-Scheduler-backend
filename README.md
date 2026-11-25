@@ -84,9 +84,8 @@ Deshalb ist für Issue #24 keine zusätzliche Schemaänderung oder Migration nö
 - `task_instances` speichert die einzelnen Termine mit eigenem Status und Abschlussdatum.
 
 Ein Task kann mehrere Termine haben. Derselbe Termin (Task, Datum und Uhrzeit)
-kann nur einmal gespeichert werden. Die Beispieldaten enthalten für jeden
-wiederkehrenden Task zwei Termine. Sie werden im Seed fest eingetragen;
-die automatische Erzeugung übernimmt die Wiederholungslogik.
+kann nur einmal gespeichert werden. Der Seed legt Beispieltermine an.
+Die Wiederholungslogik erzeugt weitere Termine automatisch.
 
 ### Erinnerungen (Issue #25)
 
@@ -116,6 +115,15 @@ aktualisiert und Beispiel-Tasks nicht dupliziert. Die verwendeten
 Die vier Beispielkonten verwenden lokal das Demo-Passwort `TaskSchedulerDemo!`.
 Das Seed-Skript speichert dafür bcrypt-Hashes, ergänzt fehlende Hashes und
 behält bereits gesetzte Passwörter bei. Verwende diese Konten nur lokal.
+
+| Anforderungen | Beispiele in den Seed-Daten |
+| --- | --- |
+| F001–F003 | Aufgaben mit Datum, zweiter Monatswoche und drittem Donnerstag sowie täglicher, wöchentlicher und monatlicher Wiederholung |
+| F004–F005, F012 | Labels und Zuweisungen an Benutzer samt Titel, Beschreibung und Datum für die Filter |
+| F006–F007 | Erinnerungsabstände und geplante Zustellungen für die Backup-Termine |
+| F008–F009, NF002 | Ein abgeschlossener Einzeltermin und eine Serie mit offenen und abgeschlossenen Terminen. Ein erneuter Import erhält den Abschlussstatus bestehender Termine. |
+| F010–F011, F015 | Offene, abgeschlossene und überfällige Termine für Kacheln und Zeitachse. `task_instance_overview` berechnet die Überfälligkeit. |
+| F013–F014 | Projektteam mit Admin und Mitgliedern sowie Aufgaben, die dem Team zugewiesen sind |
 
 ## 6. Backend starten
 
