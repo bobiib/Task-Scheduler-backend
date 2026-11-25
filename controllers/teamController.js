@@ -121,6 +121,9 @@ async function updateTeam(req, res) {
                 .filter((member) => member.role === "admin" && ids.includes(member.id))
                 .map((member) => member.id);
             checkAdmins(ids, adminIds);
+            if (!adminIds.length && current.some((member) => member.role === "admin")) {
+                throw new HttpError(409, "LAST_ADMIN", "A team needs at least one admin.");
+            }
         }
         await conn.query(
             "UPDATE teams SET name = COALESCE(?, name), initials = COALESCE(?, initials) WHERE id = ?",

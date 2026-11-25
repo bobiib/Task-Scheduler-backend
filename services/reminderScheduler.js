@@ -33,6 +33,7 @@ async function sendDueDeliveries() {
         `SELECT
             d.id,
             u.email,
+            t.id AS taskId,
             t.title,
             DATE_FORMAT(ti.due_date, '%Y-%m-%d') AS dueDate,
             TIME_FORMAT(ti.due_time, '%H:%i') AS dueTime

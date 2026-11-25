@@ -38,15 +38,23 @@ async function getReminders(req, res) {
     res.json({ data: await reminders.getRemindersByTask(await findTaskId(req)) });
 }
 
+async function checkTime(taskId, { amount, unit, isActive }) {
+    if (isActive && !await reminders.isBeforeDue(taskId, amount, unit)) {
+        throw invalid("The reminder time must be before the due date and not in the past.");
+    }
+}
+
 async function postReminder(req, res) {
     const taskId = await findTaskId(req);
     const { amount, unit, isActive } = parseReminder(req.body);
+    await checkTime(taskId, { amount, unit, isActive });
     res.status(201).json({ data: await reminders.createReminder(taskId, amount, unit, isActive) });
 }
 
 async function patchReminder(req, res) {
     const current = await findReminder(req);
     const { amount, unit, isActive } = parseReminder(req.body, current);
+    await checkTime(current.taskId, { amount, unit, isActive });
     res.json({ data: await reminders.updateReminder(current.id, amount, unit, isActive) });
 }
 

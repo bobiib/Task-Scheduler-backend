@@ -200,6 +200,9 @@ versendet und danach auf `sent` gesetzt, bei einem Fehler auf `failed` mit
 der Meldung in `error_message`. Fehlgeschlagene Zustellungen werden nicht
 erneut versucht.
 
+Ist `FRONTEND_URL` gesetzt, enthält die E-Mail einen Link zur Aufgabe im
+Format `<FRONTEND_URL>/all-tasks?task=<taskId>`.
+
 ### E-Mail-Erinnerungen testen
 
 ```bash
