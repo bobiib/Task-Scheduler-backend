@@ -376,6 +376,7 @@ async function updateTask(id, body) {
 
         if (body.recurrence !== undefined) {
             const rule = parseRecurrence(body.recurrence, task.dueDate);
+            if (rule) getFirstOccurrence(rule);
             await saveRecurrence(connection, taskId, rule);
             await replaceOpenInstances(connection, taskId, rule, task);
         }

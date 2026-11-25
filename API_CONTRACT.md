@@ -123,6 +123,10 @@ the given weekday in it, e.g. week 2 + weekday 3 = second Wednesday. A week
 that does not exist in the month returns `400`. Task cards return these values
 as `schedule` (`null` for `date`).
 
+Fields of another schedule type must be `null` or missing, e.g. `scheduleWeekday`
+with `week`. Dates must be valid and between 2000 and 2100. All invalid values
+return `400 VALIDATION_ERROR`.
+
 ## Recurrence
 
 `POST /tasks` and `PATCH /tasks/:id` accept an optional `recurrence` object.
@@ -147,7 +151,9 @@ as `schedule` (`null` for `date`).
 
 `startDate` defaults to `dueDate`, `endDate` is optional. When a task is created
 with a rule, its first instance is the first date that matches the rule.
-Months without the requested day (e.g. 31) are skipped.
+Months without the requested day (e.g. 31) are skipped. Fields of another
+`type`, an `endDate` before `startDate` and a rule without any matching date
+return `400 VALIDATION_ERROR`.
 
 Instances of recurring tasks are created automatically up to 30 days ahead
 whenever `GET /tasks` or `GET /tasks/:id` is called. Each instance is completed
