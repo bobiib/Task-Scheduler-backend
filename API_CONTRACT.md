@@ -15,6 +15,11 @@ All request and response fields use `camelCase`. Successful responses use a
 }
 ```
 
+Other general codes: `INVALID_JSON` (400), `ROUTE_NOT_FOUND` (404),
+`CONFLICT` (409, e.g. duplicate values), `INVALID_RELATION` (400, referenced
+record missing) and `INTERNAL_ERROR` (500). Unexpected errors are logged on the
+server without request data.
+
 ## Task card representation
 
 `GET /api/tasks` returns task instances because recurring tasks must be
