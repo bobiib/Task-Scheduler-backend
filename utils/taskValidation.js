@@ -2,6 +2,11 @@ const HttpError = require("./httpError");
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
+const SCHEDULE_FIELDS = {
+    date: [],
+    week: ["scheduleYear", "scheduleMonth", "scheduleWeekOfMonth"],
+    weekday_in_month: ["scheduleYear", "scheduleMonth", "scheduleWeekOfMonth", "scheduleWeekday"]
+};
 
 function validationError(message) {
     return new HttpError(400, "VALIDATION_ERROR", "The request is invalid.", [message]);
@@ -30,6 +35,10 @@ function validateDate(value, fieldName = "dueDate") {
         throw validationError(`${fieldName} must be a valid date.`);
     }
 
+    if (value < "2000-01-01" || value > "2100-12-31") {
+        throw validationError(`${fieldName} must be between 2000 and 2100.`);
+    }
+
     return value;
 }
 
@@ -55,7 +64,7 @@ function parseLabelIds(value) {
 
 function parseRange(value, fieldName, min, max) {
     const number = Number(value);
-    if (value === null || value === undefined || !Number.isInteger(number) || number < min || number > max) {
+    if (!/^\d+$/.test(String(value)) || number < min || number > max) {
         throw validationError(`${fieldName} must be between ${min} and ${max}.`);
     }
 
@@ -66,14 +75,18 @@ function parseRange(value, fieldName, min, max) {
 // weekday_in_month: due on the given weekday inside that block, e.g. 2nd Wednesday.
 function parseSchedule(body, current) {
     const type = body.scheduleType ?? current?.schedule_type ?? "date";
-    const empty = { type, year: null, month: null, weekOfMonth: null, weekday: null };
-
-    if (type === "date") {
-        return empty;
+    if (!Object.hasOwn(SCHEDULE_FIELDS, type)) {
+        throw validationError("scheduleType must be date, week or weekday_in_month.");
     }
 
-    if (type !== "week" && type !== "weekday_in_month") {
-        throw validationError("scheduleType must be date, week or weekday_in_month.");
+    const extra = SCHEDULE_FIELDS.weekday_in_month.find((field) => body[field] != null && !SCHEDULE_FIELDS[type].includes(field));
+    if (extra) {
+        throw validationError(`${extra} cannot be used with scheduleType ${type}.`);
+    }
+
+    const empty = { type, year: null, month: null, weekOfMonth: null, weekday: null };
+    if (type === "date") {
+        return empty;
     }
 
     const schedule = {

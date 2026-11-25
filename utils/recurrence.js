@@ -1,6 +1,14 @@
 const { validationError, validateDate } = require("./taskValidation");
 
-const TYPES = ["daily", "weekly", "monthly_day", "monthly_weekday", "yearly"];
+// Fields each type may use besides type, startDate and endDate.
+const TYPE_FIELDS = {
+    daily: [],
+    weekly: ["weekdays"],
+    monthly_day: ["dayOfMonth"],
+    monthly_weekday: ["weekOfMonth", "weekday"],
+    yearly: ["monthOfYear", "dayOfMonth"]
+};
+const TYPES = Object.keys(TYPE_FIELDS);
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function toDate(value) {
@@ -18,7 +26,7 @@ function isoWeekday(date) {
 
 function parseNumber(value, fieldName, min, max) {
     const number = Number(value);
-    if (!Number.isInteger(number) || number < min || number > max) {
+    if (!/^\d+$/.test(String(value)) || number < min || number > max) {
         throw validationError(`recurrence.${fieldName} must be between ${min} and ${max}.`);
     }
 
@@ -36,6 +44,12 @@ function parseRecurrence(value, defaultStartDate) {
 
     if (!TYPES.includes(value.type)) {
         throw validationError(`recurrence.type must be one of: ${TYPES.join(", ")}.`);
+    }
+
+    const allowed = ["type", "startDate", "endDate", ...TYPE_FIELDS[value.type]];
+    const extra = Object.keys(value).find((key) => value[key] != null && !allowed.includes(key));
+    if (extra) {
+        throw validationError(`recurrence.${extra} cannot be used with type ${value.type}.`);
     }
 
     const startDate = validateDate(value.startDate ?? defaultStartDate, "recurrence.startDate");
