@@ -207,6 +207,74 @@ CREATE TABLE IF NOT EXISTS reminder_deliveries (
     INDEX idx_reminder_recipient (recipient_user_id)
 );
 
+-- Apply these checks to new and existing databases.
+ALTER TABLE users
+    DROP CONSTRAINT IF EXISTS ck_users_active,
+    ADD CONSTRAINT ck_users_active CHECK (is_active IN (FALSE, TRUE));
+
+ALTER TABLE tasks
+    DROP CONSTRAINT IF EXISTS ck_tasks_active,
+    DROP CONSTRAINT IF EXISTS ck_tasks_schedule_fields,
+    DROP CONSTRAINT IF EXISTS ck_tasks_schedule_calendar,
+    ADD CONSTRAINT ck_tasks_active CHECK (is_active IN (FALSE, TRUE)),
+    ADD CONSTRAINT ck_tasks_schedule_fields CHECK (
+        (schedule_type = 'date'
+            AND schedule_year IS NULL AND schedule_month IS NULL
+            AND schedule_week_of_month IS NULL AND schedule_weekday IS NULL)
+        OR (schedule_type IN ('week', 'weekday_in_month')
+            AND schedule_date IS NULL AND schedule_year BETWEEN 2000 AND 2100
+            AND (schedule_type = 'weekday_in_month' OR schedule_weekday IS NULL))
+    ),
+    ADD CONSTRAINT ck_tasks_schedule_calendar CHECK (
+        schedule_type = 'date'
+        OR (
+            (schedule_week_of_month - 1) * 7 + 1
+                + CASE WHEN schedule_type = 'weekday_in_month' THEN
+                    MOD(schedule_weekday - 1 - WEEKDAY(
+                        DATE_ADD(MAKEDATE(schedule_year, 1), INTERVAL (schedule_month - 1) MONTH)
+                    ) + 7, 7)
+                  ELSE 0
+                  END
+            <= DAY(LAST_DAY(
+                DATE_ADD(MAKEDATE(schedule_year, 1), INTERVAL (schedule_month - 1) MONTH)
+            ))
+        )
+    );
+
+ALTER TABLE task_recurrences
+    DROP CONSTRAINT IF EXISTS ck_task_recurrences_fields,
+    ADD CONSTRAINT ck_task_recurrences_fields CHECK (
+        (repeat_type IN ('monthly_day', 'yearly') OR day_of_month IS NULL)
+        AND (repeat_type = 'monthly_weekday' OR (week_of_month IS NULL AND weekday IS NULL))
+        AND (repeat_type = 'yearly' OR month_of_year IS NULL)
+        AND (repeat_type <> 'yearly' OR day_of_month <= DAY(LAST_DAY(
+            DATE_ADD('2000-01-01', INTERVAL (month_of_year - 1) MONTH)
+        )))
+    );
+
+ALTER TABLE task_reminders
+    DROP CONSTRAINT IF EXISTS ck_task_reminders_active,
+    ADD CONSTRAINT ck_task_reminders_active CHECK (is_active IN (FALSE, TRUE));
+
+-- MariaDB disallows CHECK expressions on foreign keys with ON DELETE SET NULL.
+DELIMITER //
+CREATE OR REPLACE TRIGGER tasks_one_assignee_insert
+BEFORE INSERT ON tasks FOR EACH ROW
+BEGIN
+    IF NEW.assigned_user_id IS NOT NULL AND NEW.assigned_team_id IS NOT NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'A task can have only one assignee.';
+    END IF;
+END//
+
+CREATE OR REPLACE TRIGGER tasks_one_assignee_update
+BEFORE UPDATE ON tasks FOR EACH ROW
+BEGIN
+    IF NEW.assigned_user_id IS NOT NULL AND NEW.assigned_team_id IS NOT NULL THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'A task can have only one assignee.';
+    END IF;
+END//
+DELIMITER ;
+
 CREATE OR REPLACE VIEW task_instance_overview AS
 SELECT
     ti.id AS task_instance_id,

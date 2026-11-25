@@ -76,7 +76,12 @@ test("plans and sends reminders once and records rejected mail", async t => {
     });
     await connection.query(schema.slice(0, separator).replace("IF NOT EXISTS task_scheduler", database));
     databaseCreated = true;
-    await connection.query(schema.slice(separator).replace("USE task_scheduler;", `USE ${database};`));
+    // DELIMITER is handled by the command-line client, not the SQL server.
+    const schemaSql = schema.slice(separator)
+        .replace("USE task_scheduler;", `USE ${database};`)
+        .replace(/^DELIMITER [^\r\n]*\r?\n/gm, "")
+        .replace(/^END\/\/\r?$/gm, "END;");
+    await connection.query(schemaSql);
 
     const messages = [];
     const attempts = [];

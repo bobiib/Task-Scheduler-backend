@@ -127,6 +127,10 @@ async function main() {
         for (const [description, sql, parameters] of foreignKeyTests) {
             await expectError(description, sql, parameters, 1452);
         }
+        await expectError("Task mit Benutzer und Team anlegen",
+            taskSql, [`${name}_both`, creator, assignee, team], 1644);
+        await expectError("Team zu bereits zugewiesenem Task hinzufügen",
+            "UPDATE tasks SET assigned_team_id = ? WHERE id = ?", [team, userTask], 1644);
 
         // 3. Eindeutige Werte und doppelte Beziehungen prüfen.
         const duplicateTests = [
@@ -152,6 +156,12 @@ async function main() {
             ["Task-Wochentag 8", "UPDATE tasks SET schedule_weekday = 8 WHERE id = ?", [task]],
             ["Task-Uhrzeit 25:00", "UPDATE tasks SET default_due_time = '25:00:00' WHERE id = ?", [task]],
             ["Datumstask ohne Datum", "UPDATE tasks SET schedule_date = NULL WHERE id = ?", [task]],
+            ["Datumstask mit zusätzlichen Monatsfeldern", "UPDATE tasks SET schedule_year = 2030, schedule_month = 1 WHERE id = ?", [task]],
+            ["Wochentask mit zusätzlichem Datum", "UPDATE tasks SET schedule_type = 'week', schedule_year = 2030, schedule_month = 1, schedule_week_of_month = 2 WHERE id = ?", [task]],
+            ["Fünfte Woche in einem Februar mit 28 Tagen", "UPDATE tasks SET schedule_type = 'week', schedule_date = NULL, schedule_year = 2030, schedule_month = 2, schedule_week_of_month = 5 WHERE id = ?", [task]],
+            ["Fünfter Donnerstag in einem Februar mit 29 Tagen", "UPDATE tasks SET schedule_type = 'weekday_in_month', schedule_date = NULL, schedule_year = 2028, schedule_month = 2, schedule_week_of_month = 5, schedule_weekday = 4 WHERE id = ?", [task]],
+            ["Benutzer mit ungültigem Aktivstatus", "UPDATE users SET is_active = 2 WHERE id = ?", [assignee]],
+            ["Task mit ungültigem Aktivstatus", "UPDATE tasks SET is_active = 2 WHERE id = ?", [task]],
             ["Wiederholungsende vor Beginn", "UPDATE task_recurrences SET end_date = '2029-01-01' WHERE id = ?", [recurrence]],
             ["Wiederholungs-Monatstag 32", "UPDATE task_recurrences SET day_of_month = 32 WHERE id = ?", [recurrence]],
             ["Wiederholungs-Woche 6", "UPDATE task_recurrences SET week_of_month = 6 WHERE id = ?", [recurrence]],
@@ -160,11 +170,14 @@ async function main() {
             ["Monatswiederholung ohne Monatstag", "UPDATE task_recurrences SET repeat_type = 'monthly_day' WHERE id = ?", [recurrence]],
             ["Monatswiederholung ohne Woche", "UPDATE task_recurrences SET repeat_type = 'monthly_weekday', weekday = 1 WHERE id = ?", [recurrence]],
             ["Jahreswiederholung ohne Monat", "UPDATE task_recurrences SET repeat_type = 'yearly', day_of_month = 10 WHERE id = ?", [recurrence]],
+            ["Tägliche Wiederholung mit Monatstag", "UPDATE task_recurrences SET day_of_month = 10 WHERE id = ?", [recurrence]],
+            ["Jahreswiederholung am 30. Februar", "UPDATE task_recurrences SET repeat_type = 'yearly', month_of_year = 2, day_of_month = 30 WHERE id = ?", [recurrence]],
             ["Wochentagsliste mit Wert 8", "INSERT INTO recurrence_weekdays (recurrence_id, weekday) VALUES (?, 8)", [recurrence]],
             ["Abgeschlossene Instanz ohne Abschlussdatum", "UPDATE task_instances SET status = 'completed' WHERE id = ?", [instance]],
             ["Instanz-Uhrzeit 25:00", "UPDATE task_instances SET due_time = '25:00:00' WHERE id = ?", [instance]],
             ["Negative Instanz-Uhrzeit", "UPDATE task_instances SET due_time = '-00:00:01' WHERE id = ?", [instance]],
             ["Reminder-Abstand 0", "UPDATE task_reminders SET amount = 0 WHERE id = ?", [reminder]],
+            ["Reminder mit ungültigem Aktivstatus", "UPDATE task_reminders SET is_active = 2 WHERE id = ?", [reminder]],
             ["Gesendete Zustellung ohne Versanddatum", "UPDATE reminder_deliveries SET status = 'sent' WHERE id = ?", [delivery]],
             ["Geplante Zustellung mit Versanddatum", "UPDATE reminder_deliveries SET sent_at = '2030-01-10 08:30:00' WHERE id = ?", [delivery]]
         ];
@@ -173,7 +186,16 @@ async function main() {
         }
 
         await connection.query(
-            "UPDATE task_recurrences SET repeat_type = 'monthly_weekday', week_of_month = 2, weekday = 4 WHERE id = ?",
+            "UPDATE task_recurrences SET repeat_type = 'yearly', month_of_year = 2, day_of_month = 29 WHERE id = ?",
+            [recurrence]);
+        await expectValue("Jahreswiederholung am 29. Februar bleibt zulässig",
+            "SELECT COUNT(*) AS value FROM task_recurrences WHERE id = ? AND month_of_year = 2 AND day_of_month = 29",
+            [recurrence], 1);
+        await connection.query(
+            `UPDATE task_recurrences
+             SET repeat_type = 'monthly_weekday', week_of_month = 2, weekday = 4,
+                 month_of_year = NULL, day_of_month = NULL
+             WHERE id = ?`,
             [recurrence]);
         await expectValue("Gültige Monatswiederholung mit Woche und Wochentag",
             "SELECT COUNT(*) AS value FROM task_recurrences WHERE task_id = ? AND repeat_type = 'monthly_weekday' AND week_of_month = 2 AND weekday = 4",

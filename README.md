@@ -74,6 +74,9 @@ Password: Wert von MARIADB_ROOT_PASSWORD
 
 Danach `database/schema.sql` öffnen, das Schema `task_scheduler` auswählen und die gesamte Datei ausführen.
 
+Führe `database/schema.sql` auch für eine bestehende Datenbank erneut aus,
+um die Constraints und Trigger aus Issue #52 einzuspielen.
+
 ### Wiederkehrende Aufgaben (Issue #24)
 
 Die benötigten Tabellen sind bereits in `database/schema.sql` enthalten.
