@@ -29,12 +29,15 @@ function formatDate(value) {
 // Errors are passed on so that the caller can store them for the delivery.
 async function sendReminderEmail(to, task) {
     const due = `${formatDate(task.dueDate)} um ${task.dueTime.slice(0, 5)} Uhr`;
+    const link = process.env.FRONTEND_URL
+        ? `\n\nZur Aufgabe: ${process.env.FRONTEND_URL.replace(/\/$/, "")}/all-tasks?task=${task.taskId}`
+        : "";
 
     await getTransporter().sendMail({
         from: process.env.SMTP_FROM,
         to,
         subject: `Erinnerung: ${task.title}`,
-        text: `Hallo\n\nDie Aufgabe "${task.title}" ist am ${due} fällig.\n\nTask-Scheduler`
+        text: `Hallo\n\nDie Aufgabe "${task.title}" ist am ${due} fällig.${link}\n\nTask-Scheduler`
     });
 }
 

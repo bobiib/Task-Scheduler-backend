@@ -183,6 +183,9 @@ Unknown instances return `404 TASK_INSTANCE_NOT_FOUND`.
 one task returns `409`. Task cards still show the first active reminder as text
 in `reminder`.
 
+An active reminder must be in the future for at least one open instance of the
+task, otherwise create and update return `400 VALIDATION_ERROR`.
+
 Reminder emails are sent by the backend itself, there is no endpoint for it.
 See "E-Mail-Versand" in the README.
 
@@ -227,7 +230,8 @@ tasks returns `409`.
 The optional `adminIds` array sets which members have the `admin` role; every
 admin must also be a member. When a team is created without `adminIds`, the
 creator becomes admin if they are a member. When a team is updated without
-`adminIds`, the remaining members keep their stored roles.
+`adminIds`, the remaining members keep their stored roles. An update that would
+leave a team without an admin returns `409 LAST_ADMIN`.
 
 For these reference endpoints, successful reads, creates and updates also use
 `{ "data": ... }`, like the task endpoints.
